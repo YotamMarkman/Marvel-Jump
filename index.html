@@ -37,6 +37,11 @@
     let highestPlatformIndex = -1;
     let absoluteHeight = 0; // Track the absolute height including scrolling
     let currentPlatform = null; // Track which platform player is currently standing on
+    let gameOver = false; // To track if the game should stop
+
+    // Define enemy dimensions
+    const enemyWidth = 20;
+    const enemyHeight = 20;
 
     // Player
     let player = {
@@ -57,7 +62,7 @@
     let keys = [];
     window.addEventListener('keydown', function(e) {
       keys[e.keyCode] = true;
-      if (e.keyCode == 32 && !player.jumping) { // Space key for jump
+      if (e.keyCode === 32 && !player.jumping) { // Space key for jump
         player.jumping = true;
         player.velY = baseJump - Math.abs(player.velX); // Higher jump if running faster
         currentPlatform = null; // No longer on a platform
@@ -66,6 +71,13 @@
     window.addEventListener('keyup', function(e) {
       keys[e.keyCode] = false;
     });
+
+    // Function: getEnemyProbability
+    // Returns the enemy spawn probability.
+    // Starts at 5% and increases by 1% for every 200 points in score, to a maximum of 20%.
+    function getEnemyProbability() {
+      return Math.min(0.05 + Math.floor(score / 200) * 0.01, 0.20);
+    }
 
     // Get platform fall countdown based on current score
     function getFallCountdown() {
@@ -76,7 +88,7 @@
       const firstTimeDecrease = 0.5; // First decrease by 0.5 seconds
       const secondTimeDecrease = 0.1; // Second decrease by 0.1 seconds
       
-      // Calculate how many times to decrease the time in the first phase
+      // Calculate first phase decreases
       const firstDecreaseCount = Math.floor(score / firstThreshold);
       let newTime = Math.max(baseTime - (firstDecreaseCount * firstTimeDecrease), 1);
       
@@ -89,11 +101,27 @@
       return newTime;
     }
 
-    // Updated updateScore function that accounts for multiple platforms jumped
+    // Create an enemy for a platform with chance determined by score.
+    // 50% chance for Type1 (static) and 50% for Type2 (moving).
+    function createEnemy(platform) {
+      let enemyType = Math.random() < 0.5 ? 'Type1' : 'Type2';
+      return {
+        type: enemyType,
+        // Place enemy roughly in the center of the platform
+        x: platform.x + (platform.width / 2) - (enemyWidth / 2),
+        y: platform.y - enemyHeight,
+        width: enemyWidth,
+        height: enemyHeight,
+        // Only relevant for Type2: moving enemy
+        direction: 1,
+        speed: 1
+      };
+    }
+
+    // Updated updateScore function that accounts for multiple platforms jumped.
     function updateScore(platformId) {
-      // Only update score if this is a higher platform than the highest one we've been on
+      // Only update score if this is a higher platform than the highest one we've been on.
       if (platformId > highestPlatformIndex) {
-        // Calculate how many platform levels have been jumped
         const levelsJumped = platformId - highestPlatformIndex;
         const scoreIncrement = levelsJumped * 10;
         const newScore = score + scoreIncrement;
@@ -170,7 +198,7 @@
         }
       } while (!isValidPlatformPosition(newY, platforms));
 
-      platforms.push({
+      let platform = {
         id: i,
         x: Math.random() * (canvas.width - 50),
         y: newY,
@@ -185,11 +213,19 @@
         color: 'black',
         scoreValue: platformScore,
         isMilestone: (i + 1) % 10 === 0,
-        milestoneValue: milestoneValue
-      });
+        milestoneValue: milestoneValue,
+        enemy: null  // Will hold enemy object if spawned
+      };
+
+      // Add an enemy based on the current enemy probability.
+      if (Math.random() < getEnemyProbability()) {
+        platform.enemy = createEnemy(platform);
+      }
+      
+      platforms.push(platform);
     }
 
-    // Update the platform recycling code to maintain proper spacing
+    // Update the platform recycling code to maintain proper spacing and enemy spawn chance.
     function recyclePlatform(platform) {
       let newY;
       let attempts = 0;
@@ -218,13 +254,33 @@
       platform.scoreValue = (platform.id + 1) * 10;
       platform.isMilestone = (platform.id + 1) % 10 === 0;
       platform.milestoneValue = Math.floor(platform.id / 10) * 100 + 100;
+      
+      // Reset enemy: use the updated enemy probability when recycling.
+      if (Math.random() < getEnemyProbability()) {
+        platform.enemy = createEnemy(platform);
+      } else {
+        platform.enemy = null;
+      }
+    }
+
+    // Helper: Check if two objects are colliding (AABB collision)
+    function isColliding(obj1, obj2) {
+      return (
+        obj1.x < obj2.x + obj2.width &&
+        obj1.x + obj1.width > obj2.x &&
+        obj1.y < obj2.y + obj2.height &&
+        obj1.y + obj1.height > obj2.y
+      );
     }
 
     let lastTime = 0;
     function updateGame(timestamp) {
+      if (gameOver) return; // Stop updating if game over
+      
       const deltaTime = timestamp - lastTime;
       lastTime = timestamp;
       
+      // Handle key inputs (left/right)
       if (keys[39]) { // right arrow
         if (player.velX < player.speed) {
           player.velX++;
@@ -241,12 +297,14 @@
       player.x += player.velX;
       player.y += player.velY;
 
+      // Reset current platform if player is jumping or moving horizontally significantly
       if (player.jumping || Math.abs(player.velX) > 0.5) {
         currentPlatform = null;
       }
 
       absoluteHeight += player.velY < 0 ? -player.velY : 0;
 
+      // Screen scroll when player moves high up
       if (player.y < canvas.height / 4) {
         let scrollAmount = Math.abs(player.velY);
         player.y += scrollAmount;
@@ -260,6 +318,7 @@
         });
       }
 
+      // Update falling platforms
       platforms.forEach(platform => {
         if (platform.isFalling) {
           platform.fallSpeed += 0.1;
@@ -268,20 +327,37 @@
         }
       });
 
-      // Collision with canvas edges
+      // Enemy behavior: update movement for platforms with an enemy.
+      platforms.forEach(platform => {
+        if (platform.enemy) {
+          // Sync enemy's vertical position with platform.
+          platform.enemy.y = platform.y - enemyHeight;
+          if (platform.enemy.type === 'Type2') {
+            // Move enemy left/right within platform bounds.
+            platform.enemy.x += platform.enemy.speed * platform.enemy.direction;
+            // Bounce when hitting the edges of the platform.
+            if (platform.enemy.x <= platform.x || (platform.enemy.x + platform.enemy.width) >= (platform.x + platform.width)) {
+              platform.enemy.direction *= -1;
+            }
+          }
+        }
+      });
+
+      // Collision with canvas edges (horizontal)
       if (player.x >= canvas.width - player.width) {
         player.x = canvas.width - player.width;
       } else if (player.x <= 0) {
         player.x = 0;
       }
 
+      // Collision with bottom (ground)
       if (player.y >= canvas.height - player.height) {
         player.y = canvas.height - player.height;
         player.jumping = false;
         player.velY = 0;
       }
 
-      // Platform collision
+      // Platform collision detection
       let onPlatform = false;
       platforms.forEach(platform => {
         if (
@@ -324,28 +400,50 @@
         currentPlatform = null;
       }
 
+      // Check for collision with any enemy on any platform
+      platforms.forEach(platform => {
+        if (platform.enemy && isColliding(player, platform.enemy)) {
+          gameOver = true;
+          alert("Game Over!");
+          document.location.reload();
+        }
+      });
+
+      // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      // Draw platforms and any enemy on them
       platforms.forEach(platform => {
         platform.color = getPlatformColor(platform);
         ctx.fillStyle = platform.color;
         ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
         
+        // Draw milestone box if applicable
         if (platform.isMilestone) {
           drawScoreBox(platform.x + platform.width / 2 - 15, platform.y - 15, platform.milestoneValue);
         }
         
+        // Draw countdown indicator when player is on the platform
         if (platform === currentPlatform && !platform.isFalling) {
           let timeRatio = platform.standingTime / (platform.fallCountdown * 60);
           let countdownWidth = platform.width * (1 - timeRatio);
           ctx.fillStyle = 'green';
           ctx.fillRect(platform.x, platform.y - 5, countdownWidth, 3);
         }
+        
+        // Draw enemy if it exists
+        if (platform.enemy) {
+          // Choose color based on enemy type: Type1 is static (blue), Type2 is moving (red)
+          ctx.fillStyle = platform.enemy.type === 'Type1' ? 'blue' : 'red';
+          ctx.fillRect(platform.enemy.x, platform.enemy.y, platform.enemy.width, platform.enemy.height);
+        }
       });
 
+      // Draw player
       ctx.fillStyle = 'red';
       ctx.fillRect(player.x, player.y, player.width, player.height);
 
+      // Draw score text
       ctx.fillStyle = 'white';
       ctx.font = "20px Arial";
       ctx.fillText("Score: " + score, 10, 30);
@@ -356,6 +454,7 @@
       requestAnimationFrame(updateGame);
     }
 
+    // Function to draw a wooden box with score
     function drawScoreBox(x, y, scoreValue) {
       ctx.fillStyle = '#8B4513';
       ctx.fillRect(x, y, 30, 20);
