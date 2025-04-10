@@ -1,25 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Platformer Game with Screen Scroll</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Platformer Game with Iron Man</title>
   <style>
-    body, html { margin: 0; padding: 0; overflow: hidden; }
-    #gameCanvas { background-color: #87CEEB; }
-    #scoreDisplay, #highScoreDisplay {
+    /* General body and container styles */
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #222;
+      font-family: Arial, sans-serif;
+    }
+    /* Score displays positioned at upper left */
+    #scoreDisplay {
       position: absolute;
       top: 10px;
-      font-family: Arial, sans-serif;
+      left: 10px;
       font-size: 20px;
       font-weight: bold;
       color: white;
-      text-shadow: 2px 2px 4px #000000;
-      z-index: 2;
+      text-shadow: 2px 2px 4px #000;
+      z-index: 10;
     }
-    #scoreDisplay { left: 10px; }
-    #highScoreDisplay { right: 10px; }
-    /* Game Over Overlay Styles */
+    #highScoreDisplay {
+      position: absolute;
+      top: 40px;
+      left: 10px;
+      font-size: 20px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 2px 2px 4px #000;
+      z-index: 10;
+    }
+    /* Game container: holds the canvas and the Iron Man element */
+    #gameContainer {
+      position: relative;
+      width: 400px;
+      height: 600px;
+      margin: 0 auto;
+      overflow: hidden;
+      border: 2px solid #000;
+      background: #87CEEB; /* Your background remains unchanged */
+    }
+    /* The canvas (for platforms, enemies, etc.) */
+    #gameCanvas {
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 1;
+    }
+    /* Iron Man graphic:
+       This element represents your player. It uses a background image (ironman.png)
+       and is absolutely positioned according to game physics. */
+    .ironman {
+      position: absolute;
+      width: 60px;  /* Reduced size */
+      height: 90px; /* Reduced size */
+      background: url("ironman.png") no-repeat center center / cover;
+      z-index: 5;
+    }
+    /* Jump pop animation for visual feedback */
+    @keyframes jumpPop {
+      0%   { transform: translateY(0); }
+      50%  { transform: translateY(-20px); }
+      100% { transform: translateY(0); }
+    }
+    .ironman.jump {
+      animation: jumpPop 0.3s ease-out;
+    }
+    /* Bullet style for upward shooting */
+    .bullet {
+      position: absolute;
+      width: 6px;
+      height: 12px;
+      background: yellow;
+      z-index: 6;
+    }
+    @keyframes shootUpAnimation {
+      0% { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(-600px); opacity: 0; }
+    }
+    .shootUp {
+      animation: shootUpAnimation 1s linear forwards;
+    }
+    /* Game Over overlay styling */
     #gameOverOverlay {
       display: none;
       position: fixed;
@@ -31,7 +97,7 @@
       color: white;
       text-align: center;
       padding-top: 100px;
-      z-index: 3;
+      z-index: 100;
     }
     #gameOverOverlay h1 {
       font-size: 50px;
@@ -57,9 +123,17 @@
   </style>
 </head>
 <body>
+  <!-- Score displays -->
   <div id="scoreDisplay">Score: 0</div>
   <div id="highScoreDisplay">High Score: 0</div>
-  <canvas id="gameCanvas" width="400" height="600"></canvas>
+  
+  <!-- Game container holds both the canvas and the Iron Man character -->
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <!-- Iron Man element replaces the old red rectangle player -->
+    <div id="ironman" class="ironman"></div>
+  </div>
+  
   <!-- Game Over Overlay -->
   <div id="gameOverOverlay">
     <h1>GAME OVER</h1>
@@ -69,16 +143,22 @@
     <ol id="leaderboardList"></ol>
     <p>Press <strong>Q</strong> to Quit, <strong>R</strong> or <strong>Space</strong> to Restart</p>
   </div>
+  
   <script>
+    /***********************
+     * Initialization
+     ***********************/
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    const ironmanEl = document.getElementById('ironman');
     const scoreDisplay = document.getElementById('scoreDisplay');
     const highScoreDisplay = document.getElementById('highScoreDisplay');
     const gameOverOverlay = document.getElementById('gameOverOverlay');
     const finalScoreDisplay = document.getElementById('finalScoreDisplay');
     const leaderboardList = document.getElementById('leaderboardList');
     const playAgainButton = document.getElementById('playAgainButton');
-
+    const gameContainer = document.getElementById('gameContainer');
+    
     // Game settings
     const gravity = 0.5;
     const friction = 0.8;
@@ -86,34 +166,33 @@
     let score = 0;
     let highScore = 0;
     
-    // Track player's highest platform reached
-    let highestPlatformIndex = -1;
-    let absoluteHeight = 0; // Track absolute height including scrolling
-    let currentPlatform = null; // Platform the player is currently standing on
-    let gameOver = false; // Flag to indicate game over
-    let firstPlatformRemoved = false; // Flag for removal of the starting platform
-
-    // Define enemy dimensions
-    const enemyWidth = 20;
-    const enemyHeight = 20;
-
-    // Player
+    // Player physics object (not drawn; its data determines positioning)
     let player = {
-      x: canvas.width / 2,
-      y: canvas.height - 150,
-      width: 20,
-      height: 20,
+      x: 180,    // Starting X coordinate
+      y: 450,    // Starting Y coordinate
+      width: 80, // Must match ironman element width
+      height: 120, // Must match ironman element height
       speed: 5,
       velX: 0,
       velY: 0,
       jumping: false
     };
-
-    // Platforms array
+    
+    // Track additional data
+    let highestPlatformIndex = -1;
+    let absoluteHeight = 0;
+    let currentPlatform = null;
+    let gameOver = false;
+    let firstPlatformRemoved = false;
+    
+    // Enemy dimensions for platform enemies (drawn on canvas)
+    const enemyWidth = 20;
+    const enemyHeight = 20;
+    
+    // Platforms array (each will be drawn on the canvas)
     let platforms = [];
-
-    // Create the special starting platform (first level):
-    // Covers full canvas width at the bottom, awards no score, and no enemy.
+    
+    // Create the special starting platform (the first level)
     let firstPlatform = {
       id: -1,
       x: 0,
@@ -121,55 +200,73 @@
       width: canvas.width,
       height: 10,
       absoluteY: canvas.height - 10,
-      scored: true,            // Marked as already scored so no points are given
+      scored: true, // Marked so no score is added when landing here
       standingTime: 0,
-      fallCountdown: Infinity,   // This platform will not fall
+      fallCountdown: Infinity, // Won't fall
       isFalling: false,
       fallSpeed: 0,
-      color: '#2E8B57',         // A distinct color for the starting platform
+      color: '#2E8B57',
       enemy: null,
-      isFirstPlatform: true     // Flag to mark this as the first platform
+      isFirstPlatform: true
     };
     platforms.push(firstPlatform);
-
-    // Key Listener
+    
+    /***********************
+     * Input Handling
+     ***********************/
     let keys = [];
     window.addEventListener('keydown', function(e) {
       keys[e.keyCode] = true;
-      if (e.keyCode === 32 && !player.jumping) { // Space for jump
+      // Jump on Space (key code 32)
+      if (e.keyCode === 32 && !player.jumping) {
         player.jumping = true;
         player.velY = baseJump - Math.abs(player.velX);
         currentPlatform = null;
+        // Trigger jump pop animation on the Iron Man element
+        if (!ironmanEl.classList.contains('jump')) {
+          ironmanEl.classList.add('jump');
+          setTimeout(() => {
+            ironmanEl.classList.remove('jump');
+          }, 300);
+        }
+      }
+      // Shoot upward on "S" (either uppercase or lowercase)
+      if (e.key === 's' || e.key === 'S') {
+        shootUp();
       }
     });
     window.addEventListener('keyup', function(e) {
       keys[e.keyCode] = false;
     });
-
-    // Global keydown listener for Game Over screen controls.
-    document.addEventListener("keydown", function(e) {
+    
+    // Global keydown for Game Over controls
+    document.addEventListener('keydown', function(e) {
       if (gameOver) {
-        if (e.key === "q" || e.key === "Q") {
+        if (e.key === 'q' || e.key === 'Q') {
           quitGame();
         }
-        if (e.key === "r" || e.key === " " ) {
+        if (e.key === 'r' || e.key === ' ') {
           location.reload();
         }
       }
     });
-
-    // Function: quitGame - simulate quitting the game by clearing the document
+    
+    /***********************
+     * Utility Functions
+     ***********************/
+    
+    // Quit game by replacing body content with a thank-you message.
     function quitGame() {
-      document.body.innerHTML = "<h1 style='color: white; text-align: center; margin-top: 50vh;'>Thanks for playing!</h1>";
+      document.body.innerHTML =
+        "<h1 style='color: white; text-align: center; margin-top: 50vh;'>Thanks for playing!</h1>";
     }
-
-    // Function: getEnemyProbability
-    // Returns enemy spawn chance based on score: starting at 5%, increasing by 1% per 200 score up to 20%.
+    
+    // Returns enemy spawn probability based on score: starts at 5%, increases by 1% per 200 score (max 20%).
     function getEnemyProbability() {
       return Math.min(0.05 + Math.floor(score / 200) * 0.01, 0.20);
     }
-
-    // Get platform fall countdown based on current score.
+    
+    // Determine platform fall countdown based on current score.
     function getFallCountdown() {
       const baseTime = 5;
       const minTime = 0.5;
@@ -177,7 +274,6 @@
       const secondThreshold = 150;
       const firstTimeDecrease = 0.5;
       const secondTimeDecrease = 0.1;
-      
       const firstDecreaseCount = Math.floor(score / firstThreshold);
       let newTime = Math.max(baseTime - (firstDecreaseCount * firstTimeDecrease), 1);
       if (newTime <= 1) {
@@ -186,8 +282,8 @@
       }
       return newTime;
     }
-
-    // Create an enemy for a platform (50/50 chance for Type1 vs. Type2).
+    
+    // Create an enemy for a platform (50/50 chance for static vs. moving)
     function createEnemy(platform) {
       let enemyType = Math.random() < 0.5 ? 'Type1' : 'Type2';
       return {
@@ -200,76 +296,41 @@
         speed: 1
       };
     }
-
-    // Function to get highest score from leaderboard
-    function getHighestScore() {
-      let leaderboard = JSON.parse(localStorage.getItem("leaderboard") || "[]");
-      return leaderboard.length > 0 ? Math.max(...leaderboard) : 0;
-    }
-
-    // Update high score display
-    function updateHighScoreDisplay() {
-      const highestScore = getHighestScore();
-      highScoreDisplay.textContent = "High Score: " + highestScore;
-      // Position the high score display within the canvas
-      highScoreDisplay.style.left = (canvas.width - highScoreDisplay.offsetWidth - 10) + 'px';
-    }
-
-    // Initialize high score display
-    updateHighScoreDisplay();
-
-    // Update leaderboard and high score
-    function updateLeaderboard(finalScore) {
-      let leaderboard = JSON.parse(localStorage.getItem("leaderboard") || "[]");
-      leaderboard.push(finalScore);
-      leaderboard.sort((a, b) => b - a);
-      leaderboard = leaderboard.slice(0, 10);
-      localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
-      updateHighScoreDisplay(); // Update high score display when leaderboard changes
-      return leaderboard;
-    }
-
-    // Update score function
+    
+    // Update score when landing on a higher platform (skip first platform)
     function updateScore(platformId) {
       if (platformId > highestPlatformIndex) {
         let platform = platforms.find(p => p.id === platformId);
         if (platform && platform.isFirstPlatform) return;
-        
         const levelsJumped = platformId - highestPlatformIndex;
         const scoreIncrement = levelsJumped * 10;
         const newScore = score + scoreIncrement;
-        
         if (newScore % 100 === 0 && platform) {
           platform.isMilestone = true;
         }
-        
         score = newScore;
         highestPlatformIndex = platformId;
         scoreDisplay.textContent = "Score: " + score;
-        
-        // Update high score if current score is higher
-        if (score > getHighestScore()) {
-          highScoreDisplay.textContent = "High Score: " + score;
-          highScoreDisplay.style.left = (canvas.width - highScoreDisplay.offsetWidth - 10) + 'px';
+        if (score > highScore) {
+          highScore = score;
+          highScoreDisplay.textContent = "High Score: " + highScore;
         }
-        
         if (currentPlatform) {
           currentPlatform.fallCountdown = getFallCountdown();
         }
-        
         flashScoreDisplay();
       }
     }
-
-    // Visual feedback for scoring.
+    
+    // Brief flash effect on the score display
     function flashScoreDisplay() {
       scoreDisplay.style.color = "#FFFF00";
       setTimeout(() => {
         scoreDisplay.style.color = "white";
       }, 300);
     }
-
-    // Get platform color based on state.
+    
+    // Get the current color of a platform based on its state
     function getPlatformColor(platform) {
       if (platform.isFalling) return '#8B4513';
       if (platform === currentPlatform) {
@@ -280,18 +341,68 @@
       }
       return platform.isFirstPlatform ? '#2E8B57' : '#593A0A';
     }
-
-    // Check if a new platform position is valid.
+    
+    // Check if the new platform Y position is valid (sufficient spacing)
     function isValidPlatformPosition(newY, platforms) {
       const minVerticalSpacing = player.height + 10;
       return platforms.every(platform => Math.abs(platform.y - newY) >= minVerticalSpacing);
     }
-
-    // Initialize additional platforms.
+    
+    // Update the leaderboard in localStorage with the final score.
+    function updateLeaderboard(finalScore) {
+      let leaderboard = JSON.parse(localStorage.getItem("leaderboard") || "[]");
+      leaderboard.push(finalScore);
+      leaderboard.sort((a, b) => b - a);
+      leaderboard = leaderboard.slice(0, 10);
+      localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+      return leaderboard;
+    }
+    
+    // Show the Game Over overlay along with the leaderboard.
+    function showGameOverOverlay() {
+      gameOver = true;
+      const leaderboard = updateLeaderboard(score);
+      finalScoreDisplay.textContent = "Your Score: " + score;
+      leaderboardList.innerHTML = "";
+      leaderboard.forEach((s) => {
+        let li = document.createElement("li");
+        li.textContent = s;
+        leaderboardList.appendChild(li);
+      });
+      gameOverOverlay.style.display = "block";
+    }
+    
+    // Restart game when Play Again is clicked.
+    playAgainButton.addEventListener("click", function() {
+      location.reload();
+    });
+    
+    // Shoot upward: create a bullet that moves upward from Iron Man's top-center.
+    function shootUp() {
+      const bullet = document.createElement('div');
+      bullet.classList.add('bullet', 'shootUp');
+      // Determine Iron Man's position relative to game container.
+      const rect = ironmanEl.getBoundingClientRect();
+      const containerRect = gameContainer.getBoundingClientRect();
+      // Place bullet at top-center of Iron Man.
+      const startX = rect.left - containerRect.left + (rect.width / 2) - 3; // Bullet width: 6px
+      const startY = rect.top - containerRect.top;
+      bullet.style.left = startX + 'px';
+      bullet.style.top = startY + 'px';
+      gameContainer.appendChild(bullet);
+      bullet.addEventListener('animationend', () => {
+        bullet.remove();
+      });
+    }
+    
+    /***********************
+     * Platform Initialization
+     ***********************/
+    
+    // Create additional platforms (apart from firstPlatform)
     for (let i = 0; i < 10; i++) {
       const platformScore = (i + 1) * 10;
       const milestoneValue = Math.floor(i / 10) * 100 + 100;
-      
       let newY;
       let attempts = 0;
       const maxAttempts = 50;
@@ -303,7 +414,6 @@
           break;
         }
       } while (!isValidPlatformPosition(newY, platforms));
-
       let platform = {
         id: i,
         x: Math.random() * (canvas.width - 50),
@@ -322,15 +432,13 @@
         milestoneValue: milestoneValue,
         enemy: null
       };
-
       if (Math.random() < getEnemyProbability()) {
         platform.enemy = createEnemy(platform);
       }
-      
       platforms.push(platform);
     }
-
-    // Recycle a platform when it goes off-screen.
+    
+    // Recycle a platform that moves off screen
     function recyclePlatform(platform) {
       let newY;
       let attempts = 0;
@@ -343,7 +451,6 @@
           break;
         }
       } while (!isValidPlatformPosition(newY, platforms));
-
       platform.y = newY;
       platform.x = Math.random() * (canvas.width - platform.width);
       platform.absoluteY = platform.absoluteY - canvas.height;
@@ -352,21 +459,19 @@
       platform.isFalling = false;
       platform.fallSpeed = 0;
       platform.color = 'black';
-      
       let maxId = Math.max(...platforms.map(p => p.id));
       platform.id = maxId + 1;
       platform.scoreValue = (platform.id + 1) * 10;
       platform.isMilestone = (platform.id + 1) % 10 === 0;
       platform.milestoneValue = Math.floor(platform.id / 10) * 100 + 100;
-      
       if (Math.random() < getEnemyProbability()) {
         platform.enemy = createEnemy(platform);
       } else {
         platform.enemy = null;
       }
     }
-
-    // AABB collision detection helper.
+    
+    // Simple AABB collision detection
     function isColliding(obj1, obj2) {
       return (
         obj1.x < obj2.x + obj2.width &&
@@ -375,32 +480,17 @@
         obj1.y + obj1.height > obj2.y
       );
     }
-
-    // Show the Game Over overlay along with the leaderboard.
-    function showGameOverOverlay() {
-      gameOver = true;
-      const leaderboard = updateLeaderboard(score);
-      finalScoreDisplay.textContent = "Your Score: " + score;
-      leaderboardList.innerHTML = "";
-      leaderboard.forEach((s) => {
-        let li = document.createElement("li");
-        li.textContent = s;
-        leaderboardList.appendChild(li);
-      });
-      gameOverOverlay.style.display = "block";
-    }
-
-    // Restart the game when "Play Again" is clicked.
-    playAgainButton.addEventListener("click", function() {
-      location.reload();
-    });
-
+    
+    /***********************
+     * Game Loop
+     ***********************/
     let lastTime = 0;
     function updateGame(timestamp) {
       if (gameOver) return;
       const deltaTime = timestamp - lastTime;
       lastTime = timestamp;
       
+      // Handle left/right movement from arrow keys
       if (keys[39]) { // Right arrow
         if (player.velX < player.speed) player.velX++;
       }
@@ -412,28 +502,33 @@
       player.x += player.velX;
       player.y += player.velY;
       
+      // Reset current platform if jumping or moving horizontally
       if (player.jumping || Math.abs(player.velX) > 0.5) {
         currentPlatform = null;
       }
       
       absoluteHeight += player.velY < 0 ? -player.velY : 0;
       
-      // Remove the first platform after score reaches 50.
+      // Remove the first platform once score reaches 50.
       if (score >= 50 && !firstPlatformRemoved) {
         platforms = platforms.filter(p => !p.isFirstPlatform);
         firstPlatformRemoved = true;
       }
       
+      // Screen scroll: if the player is in the top quarter, scroll everything down
       if (player.y < canvas.height / 4) {
         let scrollAmount = Math.abs(player.velY);
         player.y += scrollAmount;
         platforms.forEach(platform => {
           platform.y += scrollAmount;
           platform.absoluteY += scrollAmount;
-          if (platform.y > canvas.height) recyclePlatform(platform);
+          if (platform.y > canvas.height) {
+            recyclePlatform(platform);
+          }
         });
       }
       
+      // Update falling platforms
       platforms.forEach(platform => {
         if (platform.isFalling) {
           platform.fallSpeed += 0.1;
@@ -442,6 +537,7 @@
         }
       });
       
+      // Update enemy behavior
       platforms.forEach(platform => {
         if (platform.enemy) {
           platform.enemy.y = platform.y - enemyHeight;
@@ -454,16 +550,19 @@
         }
       });
       
+      // Constrain player horizontally
       if (player.x >= canvas.width - player.width)
         player.x = canvas.width - player.width;
       else if (player.x <= 0)
         player.x = 0;
       
+      // Game over if player falls off screen
       if (player.y > canvas.height) {
         showGameOverOverlay();
         return;
       }
       
+      // Platform collision detection
       let onPlatform = false;
       platforms.forEach(platform => {
         if (
@@ -498,12 +597,14 @@
       });
       if (!onPlatform) currentPlatform = null;
       
+      // Collision detection with enemies
       platforms.forEach(platform => {
         if (platform.enemy && isColliding(player, platform.enemy)) {
           showGameOverOverlay();
         }
       });
       
+      // Clear canvas and redraw platforms and enemies
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       platforms.forEach(platform => {
         platform.color = getPlatformColor(platform);
@@ -524,9 +625,11 @@
         }
       });
       
-      ctx.fillStyle = 'red';
-      ctx.fillRect(player.x, player.y, player.width, player.height);
+      // Update the Iron Man element's position to follow the player.
+      ironmanEl.style.left = player.x + "px";
+      ironmanEl.style.top  = player.y + "px";
       
+      // Optionally, redraw score on canvas if needed.
       ctx.fillStyle = 'white';
       ctx.font = "20px Arial";
       ctx.fillText("Score: " + score, 10, 30);
@@ -537,7 +640,7 @@
       requestAnimationFrame(updateGame);
     }
     
-    // Draw a wooden box for milestone score display.
+    // Draw a small wooden box for milestone score display.
     function drawScoreBox(x, y, scoreValue) {
       ctx.fillStyle = '#8B4513';
       ctx.fillRect(x, y, 30, 20);
