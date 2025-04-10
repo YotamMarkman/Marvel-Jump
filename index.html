@@ -36,6 +36,7 @@
         // Track player's highest platform
         let highestPlatformIndex = -1;
         let absoluteHeight = 0; // Track the absolute height including scrolling
+        let currentPlatform = null; // Track which platform player is currently standing on
 
         // Player
         let player = {
@@ -58,8 +59,13 @@
                 y: canvas.height - (100 * i) - 50,
                 width: 100,
                 height: 10,
-                absoluteY: canvas.height - (100 * i) - 50, // Track absolute Y position
-                scored: false // Track if we've scored points for this platform
+                absoluteY: canvas.height - (100 * i) - 50,
+                scored: false,
+                standingTime: 0,
+                fallCountdown: getFallCountdown(), // Initialize with current fall countdown
+                isFalling: false,
+                fallSpeed: 0,
+                color: 'black'
             });
         }
 
@@ -70,11 +76,28 @@
             if (e.keyCode == 32 && !player.jumping) { // Space key for jump
                 player.jumping = true;
                 player.velY = baseJump - Math.abs(player.velX); // Higher jump if running faster
+                currentPlatform = null; // No longer on a platform
             }
         });
         window.addEventListener('keyup', function(e) {
             keys[e.keyCode] = false;
         });
+
+        // Get platform fall countdown based on current score
+        function getFallCountdown() {
+            const baseTime = 5; // Start with 5 seconds
+            const minTime = 1; // Minimum 1 second (changed from 2)
+            const scoreThreshold = 100; // Decrease every 100 points
+            const timeDecrease = 0.5; // Decrease by 0.5 seconds each time
+            
+            // Calculate how many times to decrease the time
+            const decreaseCount = Math.floor(score / scoreThreshold);
+            
+            // Calculate new time, but don't go below minimum
+            const newTime = Math.max(baseTime - (decreaseCount * timeDecrease), minTime);
+            
+            return newTime;
+        }
 
         // Update score function
         function updateScore(platformId) {
@@ -84,7 +107,12 @@
                 highestPlatformIndex = platformId;
                 scoreDisplay.textContent = "Score: " + score;
                 
-                // Optional: Add a visual effect for scoring
+                // Update fall countdown for current platform if player is on one
+                if (currentPlatform) {
+                    currentPlatform.fallCountdown = getFallCountdown();
+                }
+                
+                // Visual effect for scoring
                 flashScoreDisplay();
             }
         }
@@ -97,7 +125,34 @@
             }, 300);
         }
 
-        function updateGame() {
+        // Get platform color based on countdown
+        function getPlatformColor(platform) {
+            if (platform.isFalling) {
+                return '#8B4513'; // Brown for falling platform
+            }
+            
+            // Not falling yet, but player is standing on it
+            if (platform === currentPlatform) {
+                let timeRatio = platform.standingTime / (platform.fallCountdown * 60); // Convert to frames (assuming 60 FPS)
+                
+                if (timeRatio < 0.33) {
+                    return 'black';
+                } else if (timeRatio < 0.66) {
+                    return '#553300'; // Dark brown
+                } else {
+                    return '#AA5500'; // Light brown
+                }
+            }
+            
+            return 'black'; // Default color
+        }
+
+        let lastTime = 0;
+        function updateGame(timestamp) {
+            // Calculate delta time for consistent animations
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+            
             // Check key inputs
             if (keys[39]) { // right arrow
                 if (player.velX < player.speed) {
@@ -115,6 +170,11 @@
 
             player.x += player.velX;
             player.y += player.velY;
+
+            // Reset current platform if player is jumping or moving horizontally significantly
+            if (player.jumping || Math.abs(player.velX) > 0.5) {
+                currentPlatform = null;
+            }
 
             // Track absolute height of the player
             absoluteHeight += player.velY < 0 ? -player.velY : 0;
@@ -140,9 +200,30 @@
                         let maxId = Math.max(...platforms.map(p => p.id));
                         platform.id = maxId + 1;
                         platform.scored = false;
+                        
+                        // Reset platform falling properties
+                        platform.standingTime = 0;
+                        platform.isFalling = false;
+                        platform.fallSpeed = 0;
+                        platform.color = 'black';
+                        
+                        // If this was the current platform, reset that too
+                        if (platform === currentPlatform) {
+                            currentPlatform = null;
+                        }
                     }
                 });
             }
+
+            // Update falling platforms
+            platforms.forEach(platform => {
+                if (platform.isFalling) {
+                    // Gradually increase fall speed for more natural effect
+                    platform.fallSpeed += 0.1;
+                    platform.y += platform.fallSpeed;
+                    platform.absoluteY += platform.fallSpeed;
+                }
+            });
 
             // Collision with the canvas edges
             if (player.x >= canvas.width - player.width) {
@@ -158,8 +239,10 @@
             }
 
             // Platform collision
+            let onPlatform = false;
             platforms.forEach(platform => {
                 if (
+                    !platform.isFalling && // Only collide with non-falling platforms
                     player.x < platform.x + platform.width &&
                     player.x + player.width > platform.x &&
                     player.y + player.height > platform.y &&
@@ -169,29 +252,69 @@
                     player.jumping = false;
                     player.velY = 0;
                     player.y = platform.y - player.height;
+                    onPlatform = true;
+                    
+                    // Player is standing on this platform
+                    if (currentPlatform !== platform) {
+                        // Switched to a new platform
+                        if (currentPlatform) {
+                            currentPlatform.standingTime = 0; // Reset previous platform timer
+                        }
+                        currentPlatform = platform;
+                    }
                     
                     // Check if we should score points for this platform
                     if (!platform.scored) {
                         updateScore(platform.id);
                         platform.scored = true;
                     }
+                    
+                    // Update standing time only if player is relatively still
+                    if (Math.abs(player.velX) < 0.5) {
+                        platform.standingTime++;
+                        
+                        // Check if platform should start falling
+                        if (platform.standingTime >= platform.fallCountdown * 60) { // Assuming 60 FPS
+                            platform.isFalling = true;
+                            platform.fallSpeed = 0.5; // Initial fall speed
+                            currentPlatform = null; // Reset current platform
+                        }
+                    }
                 }
             });
+            
+            // If player is not on any platform, reset current platform
+            if (!onPlatform) {
+                currentPlatform = null;
+            }
 
             // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw platforms
+            platforms.forEach(platform => {
+                // Update platform color based on standing time
+                platform.color = getPlatformColor(platform);
+                
+                ctx.fillStyle = platform.color;
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                
+                // Draw countdown indicator if standing on platform
+                if (platform === currentPlatform && !platform.isFalling) {
+                    let timeRatio = platform.standingTime / (platform.fallCountdown * 60);
+                    let countdownWidth = platform.width * (1 - timeRatio);
+                    
+                    // Draw countdown bar
+                    ctx.fillStyle = 'green';
+                    ctx.fillRect(platform.x, platform.y - 5, countdownWidth, 3);
+                }
+            });
 
             // Draw player
             ctx.fillStyle = 'red';
             ctx.fillRect(player.x, player.y, player.width, player.height);
 
-            // Draw platforms
-            platforms.forEach(platform => {
-                ctx.fillStyle = 'black';
-                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
-            });
-
-            // Draw score on canvas (as a backup to the HTML element)
+            // Draw score
             ctx.fillStyle = 'white';
             ctx.font = "20px Arial";
             ctx.fillText("Score: " + score, 10, 30);
@@ -202,7 +325,7 @@
             requestAnimationFrame(updateGame);
         }
 
-        updateGame();
+        updateGame(0);
     </script>
 </body>
 </html>
