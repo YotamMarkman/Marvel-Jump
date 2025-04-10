@@ -7,18 +7,35 @@
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; }
         #gameCanvas { background-color: #87CEEB; }
+        #scoreDisplay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-family: Arial, sans-serif;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px #000000;
+        }
     </style>
 </head>
 <body>
+    <div id="scoreDisplay">Score: 0</div>
     <canvas id="gameCanvas" width="400" height="600"></canvas>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('scoreDisplay');
 
         // Game settings
         const gravity = 0.5;
         const friction = 0.8;
         const baseJump = -10; // Base jump velocity
+        let score = 0;
+        
+        // Track player's highest platform
+        let highestPlatformIndex = -1;
+        let absoluteHeight = 0; // Track the absolute height including scrolling
 
         // Player
         let player = {
@@ -36,10 +53,13 @@
         let platforms = [];
         for(let i = 0; i < 10; i++) {
             platforms.push({
+                id: i,
                 x: Math.random() * (canvas.width - 50),
                 y: canvas.height - (100 * i) - 50,
                 width: 100,
-                height: 10
+                height: 10,
+                absoluteY: canvas.height - (100 * i) - 50, // Track absolute Y position
+                scored: false // Track if we've scored points for this platform
             });
         }
 
@@ -55,6 +75,27 @@
         window.addEventListener('keyup', function(e) {
             keys[e.keyCode] = false;
         });
+
+        // Update score function
+        function updateScore(platformId) {
+            // Only update score if this is a higher platform than the highest one we've been on
+            if (platformId > highestPlatformIndex) {
+                score += 10;
+                highestPlatformIndex = platformId;
+                scoreDisplay.textContent = "Score: " + score;
+                
+                // Optional: Add a visual effect for scoring
+                flashScoreDisplay();
+            }
+        }
+
+        // Visual feedback for scoring
+        function flashScoreDisplay() {
+            scoreDisplay.style.color = "#FFFF00"; // Yellow flash
+            setTimeout(() => {
+                scoreDisplay.style.color = "white"; // Return to white
+            }, 300);
+        }
 
         function updateGame() {
             // Check key inputs
@@ -75,14 +116,30 @@
             player.x += player.velX;
             player.y += player.velY;
 
+            // Track absolute height of the player
+            absoluteHeight += player.velY < 0 ? -player.velY : 0;
+
             // Screen scroll
             if (player.y < canvas.height / 4) {
-                player.y += Math.abs(player.velY);
+                let scrollAmount = Math.abs(player.velY);
+                player.y += scrollAmount;
+                
                 platforms.forEach(platform => {
-                    platform.y += Math.abs(player.velY);
+                    platform.y += scrollAmount;
+                    platform.absoluteY += scrollAmount; // Update absolute Y position
+                    
                     if (platform.y > canvas.height) {
+                        // Recycle the platform
                         platform.y = 0;
                         platform.x = Math.random() * (canvas.width - platform.width);
+                        
+                        // Update absolute Y to maintain proper height tracking
+                        platform.absoluteY = platform.absoluteY - canvas.height;
+                        
+                        // Generate a new ID for recycled platform that's higher than existing ones
+                        let maxId = Math.max(...platforms.map(p => p.id));
+                        platform.id = maxId + 1;
+                        platform.scored = false;
                     }
                 });
             }
@@ -112,6 +169,12 @@
                     player.jumping = false;
                     player.velY = 0;
                     player.y = platform.y - player.height;
+                    
+                    // Check if we should score points for this platform
+                    if (!platform.scored) {
+                        updateScore(platform.id);
+                        platform.scored = true;
+                    }
                 }
             });
 
@@ -127,6 +190,14 @@
                 ctx.fillStyle = 'black';
                 ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
             });
+
+            // Draw score on canvas (as a backup to the HTML element)
+            ctx.fillStyle = 'white';
+            ctx.font = "20px Arial";
+            ctx.fillText("Score: " + score, 10, 30);
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 1;
+            ctx.strokeText("Score: " + score, 10, 30);
 
             requestAnimationFrame(updateGame);
         }
