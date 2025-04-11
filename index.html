@@ -223,6 +223,17 @@
 <body>
   <!-- Character Selection Screen -->
   <div id="characterSelect">
+    <!-- Add audio element for opening screen music -->
+    <audio id="openingMusic" loop>
+      <source src="Opening_screen.mp3" type="audio/mp3">
+    </audio>
+    <!-- Add audio elements for character-specific music -->
+    <audio id="ironManMusic" loop>
+      <source src="iron_man_song.mp3" type="audio/mp3">
+    </audio>
+    <audio id="spiderManMusic" loop>
+      <source src="spider_man_song.mp3" type="audio/mp3">
+    </audio>
     <h1>Choose Your Character</h1>
     <div class="character-options">
       <div class="character-option" onclick="selectCharacter('ironman')">
@@ -263,6 +274,10 @@
     let selectedCharacter = null;
     const characterSelect = document.getElementById('characterSelect');
     const playerEl = document.getElementById('playerCharacter');
+    const openingMusic = document.getElementById('openingMusic');
+    const ironManMusic = document.getElementById('ironManMusic');
+    const spiderManMusic = document.getElementById('spiderManMusic');
+    let currentGameMusic = null;
 
     // Character-specific settings
     const characterSettings = {
@@ -278,9 +293,28 @@
       }
     };
 
+    // Start playing music when the page loads
+    window.addEventListener('load', function() {
+      openingMusic.play().catch(function(error) {
+        console.log("Audio play failed:", error);
+      });
+    });
+
     function selectCharacter(character) {
       selectedCharacter = character;
       characterSelect.style.display = 'none';
+      // Stop the opening music when character is selected
+      openingMusic.pause();
+      openingMusic.currentTime = 0;
+
+      // Start character-specific music
+      if (character === 'ironman') {
+        ironManMusic.play();
+        currentGameMusic = ironManMusic;
+      } else if (character === 'spiderman') {
+        spiderManMusic.play();
+        currentGameMusic = spiderManMusic;
+      }
 
       // Remove any existing character class and add the chosen one.
       playerEl.classList.remove('ironman', 'spiderman');
@@ -548,6 +582,11 @@
 
     function showGameOverOverlay() {
       gameOver = true;
+      // Stop the game music when game is over
+      if (currentGameMusic) {
+        currentGameMusic.pause();
+        currentGameMusic.currentTime = 0;
+      }
       const leaderboard = updateLeaderboard(score);
       finalScoreDisplay.textContent = "Your Score: " + score;
       leaderboardList.innerHTML = "";
