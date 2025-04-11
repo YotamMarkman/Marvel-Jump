@@ -388,6 +388,10 @@
     const standardPlatformWidth = 100;
     const platformWithEnemyWidth = 150; // Wider platforms for enemies
 
+    // Moving platform settings
+    const movingPlatformSpeed = 1;
+    const movingPlatformRange = 60; // Maximum displacement
+
     // Platforms array
     let platforms = [];
     // Create special starting platform
@@ -405,7 +409,12 @@
       fallSpeed: 0,
       color: '#2E8B57',
       enemy: null,
-      isFirstPlatform: true
+      isFirstPlatform: true,
+      // Moving platform properties
+      isMoving: false,
+      moveDirection: null,
+      originalY: canvas.height - 10,
+      displacement: 0
     };
     platforms.push(firstPlatform);
 
@@ -554,6 +563,13 @@
         else if (timeRatio < 0.66) return '#704214';
         else return '#8B4513';
       }
+      
+      // Special color for moving platforms
+      if (platform.isMoving) {
+        // Use different colors for up/down moving platforms
+        return platform.moveDirection === 'up' ? '#4286f4' : '#f47142';
+      }
+      
       return platform.isFirstPlatform ? '#2E8B57' : '#593A0A';
     }
 
@@ -651,6 +667,11 @@
       // Decide if this platform will have an enemy
       const willHaveEnemy = Math.random() < getEnemyProbability();
       
+      // Decide if this platform will move (6% chance - 3% up, 3% down)
+      const movingRandom = Math.random() * 100;
+      const isMoving = movingRandom < 6; // 6% chance
+      const moveDirection = movingRandom < 3 ? 'up' : 'down'; // 3% up, 3% down
+      
       let platform = {
         id: i,
         x: Math.random() * (canvas.width - (willHaveEnemy ? platformWithEnemyWidth : standardPlatformWidth)),
@@ -667,7 +688,12 @@
         scoreValue: platformScore,
         isMilestone: (i + 1) % 10 === 0,
         milestoneValue: milestoneValue,
-        enemy: null
+        enemy: null,
+        // Moving platform properties
+        isMoving: isMoving,
+        moveDirection: isMoving ? moveDirection : null,
+        originalY: newY,
+        displacement: 0
       };
       
       if (willHaveEnemy) {
@@ -696,6 +722,11 @@
       // Decide if recycled platform will have an enemy
       const willHaveEnemy = Math.random() < getEnemyProbability();
       
+      // Decide if this recycled platform will move (6% chance - 3% up, 3% down)
+      const movingRandom = Math.random() * 100;
+      const isMoving = movingRandom < 6; // 6% chance
+      const moveDirection = movingRandom < 3 ? 'up' : 'down'; // 3% up, 3% down
+      
       platform.y = newY;
       platform.width = willHaveEnemy ? platformWithEnemyWidth : standardPlatformWidth;
       platform.x = Math.random() * (canvas.width - platform.width);
@@ -710,6 +741,12 @@
       platform.scoreValue = (platform.id + 1) * 10;
       platform.isMilestone = (platform.id + 1) % 10 === 0;
       platform.milestoneValue = Math.floor(platform.id / 10) * 100 + 100;
+      
+      // Update moving platform properties
+      platform.isMoving = isMoving;
+      platform.moveDirection = isMoving ? moveDirection : null;
+      platform.originalY = newY;
+      platform.displacement = 0;
       
       if (willHaveEnemy) {
         platform.enemy = createEnemy(platform);
@@ -755,6 +792,36 @@
         player.x += player.velX;
         player.y += player.velY;
 
+        // Update moving platforms
+        platforms.forEach(platform => {
+          if (platform.isMoving && !platform.isFalling) {
+            // Calculate movement based on direction and displacement
+            const speed = platform.moveDirection === 'up' ? -movingPlatformSpeed : movingPlatformSpeed;
+            
+            // Update displacement
+            platform.displacement += speed;
+            
+            // Check if we've reached the max displacement
+            if (Math.abs(platform.displacement) >= movingPlatformRange) {
+              // Reverse direction when reaching limits
+              platform.moveDirection = platform.moveDirection === 'up' ? 'down' : 'up';
+            }
+            
+            // Update platform position
+            platform.y = platform.originalY + platform.displacement;
+            
+            // If player is on this platform, move them with it
+            if (platform === currentPlatform && !player.jumping) {
+              player.y += speed;
+            }
+            
+            // Update enemy position if present
+            if (platform.enemy) {
+              platform.enemy.y = platform.y - enemyHeight;
+            }
+          }
+        });
+
         if (player.jumping || Math.abs(player.velX) > 0.1) {
           if (currentPlatform) {
             if (player.x + player.width < currentPlatform.x || player.x > currentPlatform.x + currentPlatform.width) {
@@ -782,6 +849,9 @@
           player.y += scrollAmount;
           platforms.forEach(platform => {
             platform.y += scrollAmount;
+            if (platform.isMoving) {
+              platform.originalY += scrollAmount;
+            }
             if (platform.enemy) {
               platform.enemy.y += scrollAmount;
             }
@@ -795,6 +865,7 @@
           if (platform.isFalling) {
             platform.fallSpeed += 0.1;
             platform.y += platform.fallSpeed;
+            platform.isMoving = false; // Stop movement when falling
             if (platform.enemy) {
               platform.enemy.y += platform.fallSpeed;
             }
@@ -893,6 +964,30 @@
           ctx.strokeStyle = 'orange';
           ctx.lineWidth = 2;
           ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
+        }
+        
+        // Add arrow indicators for moving platforms
+        if (platform.isMoving && !platform.isFalling) {
+          ctx.fillStyle = "white";
+          ctx.beginPath();
+          
+          if (platform.moveDirection === 'up') {
+            // Draw up arrow
+            const arrowX = platform.x + platform.width / 2;
+            const arrowY = platform.y + platform.height + 5;
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(arrowX - 5, arrowY + 5);
+            ctx.lineTo(arrowX + 5, arrowY + 5);
+          } else {
+            // Draw down arrow
+            const arrowX = platform.x + platform.width / 2;
+            const arrowY = platform.y - 5;
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(arrowX - 5, arrowY - 5);
+            ctx.lineTo(arrowX + 5, arrowY - 5);
+          }
+          
+          ctx.fill();
         }
         
         if (platform.isMilestone) {
