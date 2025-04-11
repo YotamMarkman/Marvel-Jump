@@ -1,0 +1,67 @@
+/* Character Selection Screen */
+#characterSelect {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+  }
+  
+  #characterSelect h1 {
+    color: white;
+    font-size: 36px;
+    margin-bottom: 40px;
+    text-align: center;
+  }
+  
+  .character-options {
+    display: flex;
+    gap: 40px;
+  }
+  
+  .character-option {
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  
+  .character-option:hover {
+    transform: scale(1.1);
+  }
+  
+  .character-img {
+    width: 150px;
+    height: 225px;
+    border: 3px solid #666;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    object-fit: contain;
+  }
+  
+  /* Make Iron Man image display larger within the container */
+  .character-option:first-child .character-img {
+    object-fit: cover;
+    object-position: center 20%;
+    transform: scale(1.25); /* Increase the image size without changing the container */
+  }
+  
+  .character-option:hover .character-img {
+    border-color: #fff;
+  }
+  
+  .character-name {
+    color: white;
+    font-size: 24px;
+    margin-bottom: 5px;
+  }
+  
+  .character-key {
+    color: #888;
+    font-size: 16px;
+  }

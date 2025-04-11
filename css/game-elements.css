@@ -1,0 +1,8 @@
+/* Bullet style for upward shooting */
+.bullet {
+    position: absolute;
+    width: 6px;
+    height: 12px;
+    background: yellow;
+    z-index: 6;
+  }

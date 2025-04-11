@@ -1,0 +1,54 @@
+/* General body and container styles */
+body, html {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #222;
+    font-family: Arial, sans-serif;
+  }
+  
+  /* Score displays positioned at upper left */
+  #scoreDisplay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 20px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 2px 2px 4px #000;
+    z-index: 10;
+  }
+  
+  #highScoreDisplay {
+    position: absolute;
+    top: 40px;
+    left: 10px;
+    font-size: 20px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 2px 2px 4px #000;
+    z-index: 10;
+  }
+  
+  /* Game container: holds the canvas and the player element */
+  #gameContainer {
+    position: relative;
+    width: 400px;
+    height: 600px;
+    margin: 0 auto;
+    overflow: hidden;
+    border: 2px solid #000;
+    background: url("../Titan_background.png") no-repeat center center;
+    background-size: cover;
+    display: flex;
+    justify-content: center;
+  }
+  
+  /* The canvas (for platforms, enemies, etc.) */
+  #gameCanvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 1;
+    background-color: transparent;
+  }

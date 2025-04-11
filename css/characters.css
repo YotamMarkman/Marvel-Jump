@@ -1,0 +1,51 @@
+/* Player graphic base styles */
+.player-base {
+    position: absolute;
+    background-repeat: no-repeat;
+    background-position: center bottom; /* Align to bottom */
+    background-size: contain;
+    z-index: 5;
+  }
+  
+  /* Iron Man graphic */
+  .ironman {
+    width: 120px;
+    height: 180px;
+    background-image: url("../ironman.png");
+    background-size: contain;
+    background-position: center bottom;
+  }
+  
+  /* Spider-Man graphic */
+  .spiderman {
+    width: 60px;
+    height: 90px;
+    background-image: url("../spiderman.png");
+    background-size: contain;
+    background-position: center bottom;
+  }
+  
+  /* Enemy graphics - made larger */
+  .thanos {
+    position: absolute;
+    width: 60px;  /* Increased from 40px */
+    height: 80px; /* Increased from 60px */
+    background: url("../thanos.png") no-repeat center center / cover;
+    z-index: 4;
+  }
+  
+  .mysterio, .venom {
+    position: absolute;
+    width: 60px;  /* Increased from 40px */
+    height: 80px; /* Increased from 60px */
+    background: no-repeat center center / cover;
+    z-index: 4;
+  }
+  
+  .mysterio {
+    background-image: url("../mysterio.png");
+  }
+  
+  .venom {
+    background-image: url("../venom.png");
+  }
