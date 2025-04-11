@@ -64,9 +64,17 @@
     /* Thanos enemy styling */
     .thanos {
       position: absolute;
-      width: 50px;
-      height: 75px;
+      width: 40px;
+      height: 60px;
       background: url("thanos.png") no-repeat center center / cover;
+      z-index: 4;
+    }
+    /* Mysterio enemy styling */
+    .mysterio {
+      position: absolute;
+      width: 40px;
+      height: 60px;
+      background: url("mysterio.png") no-repeat center center / cover;
       z-index: 4;
     }
     /* Jump pop animation for visual feedback */
@@ -193,10 +201,11 @@
     let gameOver = false;
     let firstPlatformRemoved = false;
     let thanosElements = []; // Store all Thanos enemy elements
+    let mysterioElements = []; // Store all Mysterio enemy elements
     
     // Enemy dimensions for platform enemies
-    const enemyWidth = 50; // Updated for Thanos
-    const enemyHeight = 75; // Updated for Thanos
+    const enemyWidth = 40; // Updated for characters
+    const enemyHeight = 60; // Updated for characters
     
     // Platforms array (each will be drawn on the canvas)
     let platforms = [];
@@ -296,11 +305,8 @@
     function createEnemy(platform) {
       let enemyType = Math.random() < 0.5 ? 'Type1' : 'Type2';
       
-      // Make the platform wider since it has an enemy
-      platform.width = 150; // Increased from 100 to 150
-      
-      // Create a Thanos element if it's Type1
       if (enemyType === 'Type1') {
+        // Create a Thanos element
         const thanosEl = document.createElement('div');
         thanosEl.classList.add('thanos');
         gameContainer.appendChild(thanosEl);
@@ -317,7 +323,12 @@
           element: thanosEl
         };
       } else {
-        // Regular Type2 enemy (red rectangle)
+        // Create a Mysterio element for Type2 (moving enemy)
+        const mysterioEl = document.createElement('div');
+        mysterioEl.classList.add('mysterio');
+        gameContainer.appendChild(mysterioEl);
+        mysterioElements.push(mysterioEl);
+        
         return {
           type: enemyType,
           x: platform.x + (platform.width / 2) - (enemyWidth / 2),
@@ -325,7 +336,8 @@
           width: enemyWidth,
           height: enemyHeight,
           direction: 1,
-          speed: 1
+          speed: 1,
+          element: mysterioEl
         };
       }
     }
@@ -428,14 +440,25 @@
       });
     }
     
-    // Clean up Thanos elements when removing a platform
-    function cleanupThanosElements() {
+    // Clean up enemy elements when removing a platform
+    function cleanupEnemyElements() {
+      // Clean up Thanos elements
       thanosElements.forEach(el => {
         if (!platforms.some(p => p.enemy && p.enemy.element === el)) {
           el.remove();
         }
       });
       thanosElements = thanosElements.filter(el => 
+        platforms.some(p => p.enemy && p.enemy.element === el)
+      );
+      
+      // Clean up Mysterio elements
+      mysterioElements.forEach(el => {
+        if (!platforms.some(p => p.enemy && p.enemy.element === el)) {
+          el.remove();
+        }
+      });
+      mysterioElements = mysterioElements.filter(el => 
         platforms.some(p => p.enemy && p.enemy.element === el)
       );
     }
@@ -485,10 +508,15 @@
     
     // Recycle a platform that moves off screen
     function recyclePlatform(platform) {
-      // Remove old Thanos element if exists
+      // Remove old enemy element if exists
       if (platform.enemy && platform.enemy.element) {
         platform.enemy.element.remove();
-        thanosElements = thanosElements.filter(el => el !== platform.enemy.element);
+        
+        if (platform.enemy.type === 'Type1') {
+          thanosElements = thanosElements.filter(el => el !== platform.enemy.element);
+        } else {
+          mysterioElements = mysterioElements.filter(el => el !== platform.enemy.element);
+        }
       }
       
       let newY;
@@ -588,17 +616,19 @@
         }
       });
       
-      // Update enemy behavior and Thanos positions
+      // Update enemy behavior and positions
       platforms.forEach(platform => {
         if (platform.enemy) {
           platform.enemy.y = platform.y - enemyHeight;
           
-          if (platform.enemy.type === 'Type1' && platform.enemy.element) {
-            // Update Thanos element position
+          // Update enemy element position
+          if (platform.enemy.element) {
             platform.enemy.element.style.left = platform.enemy.x + 'px';
             platform.enemy.element.style.top = platform.enemy.y + 'px';
-          } else if (platform.enemy.type === 'Type2') {
-            // Moving enemy logic
+          }
+          
+          // Moving behavior for Type2 enemies (Mysterio)
+          if (platform.enemy.type === 'Type2') {
             platform.enemy.x += platform.enemy.speed * platform.enemy.direction;
             if (platform.enemy.x <= platform.x || (platform.enemy.x + platform.enemy.width) >= (platform.x + platform.width)) {
               platform.enemy.direction *= -1;
@@ -661,7 +691,7 @@
         }
       });
       
-      // Clear canvas and redraw platforms and Type2 enemies
+      // Clear canvas and redraw platforms
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       platforms.forEach(platform => {
         platform.color = getPlatformColor(platform);
@@ -676,19 +706,14 @@
           ctx.fillStyle = 'green';
           ctx.fillRect(platform.x, platform.y - 5, countdownWidth, 3);
         }
-        // Only draw Type2 enemies (red rectangles) directly on canvas
-        if (platform.enemy && platform.enemy.type === 'Type2') {
-          ctx.fillStyle = 'red';
-          ctx.fillRect(platform.enemy.x, platform.enemy.y, platform.enemy.width, platform.enemy.height);
-        }
       });
       
       // Update the Iron Man element's position to follow the player.
       ironmanEl.style.left = player.x + "px";
       ironmanEl.style.top  = player.y + "px";
       
-      // Clean up any orphaned Thanos elements
-      cleanupThanosElements();
+      // Clean up any orphaned enemy elements
+      cleanupEnemyElements();
       
       // Optionally, redraw score on canvas if needed.
       ctx.fillStyle = 'white';
