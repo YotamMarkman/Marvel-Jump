@@ -42,7 +42,11 @@
       margin: 0 auto;
       overflow: hidden;
       border: 2px solid #000;
-      background: #87CEEB; /* Your background remains unchanged */
+      /* Remove the previous background color */
+      /* background: #87CEEB; */
+      /* Add the background image with proper sizing */
+      background: url("Titan_background.png") no-repeat center center;
+      background-size: cover; /* Cover ensures the image covers the entire container */
     }
     /* The canvas (for platforms, enemies, etc.) */
     #gameCanvas {
@@ -135,6 +139,10 @@
       list-style: decimal;
       font-size: 18px;
       margin: 5px 0;
+    }
+    /* Make the canvas transparent to let the background show through */
+    #gameCanvas {
+      background-color: transparent;
     }
   </style>
 </head>
@@ -398,7 +406,7 @@
       let leaderboard = JSON.parse(localStorage.getItem("leaderboard") || "[]");
       leaderboard.push(finalScore);
       leaderboard.sort((a, b) => b - a);
-      leaderboard = leaderboard.slice(0, 10);
+      leaderboard = leaderboard.slice(0, 5); // Keep only top 5 scores
       localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
       return leaderboard;
     }
@@ -409,8 +417,17 @@
       const leaderboard = updateLeaderboard(score);
       finalScoreDisplay.textContent = "Your Score: " + score;
       leaderboardList.innerHTML = "";
+      
+      // Add a header for the top 5
+      const header = document.createElement("h3");
+      header.textContent = "Top 5 Best Scores";
+      header.style.marginBottom = "10px";
+      leaderboardList.before(header);
+      
       leaderboard.forEach((s) => {
         let li = document.createElement("li");
+        li.style.fontSize = "24px";
+        li.style.marginBottom = "5px";
         li.textContent = s;
         leaderboardList.appendChild(li);
       });
@@ -693,6 +710,9 @@
       
       // Clear canvas and redraw platforms
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Make the canvas transparent to show the background image
+      // We'll only draw the actual platforms now
       platforms.forEach(platform => {
         platform.color = getPlatformColor(platform);
         ctx.fillStyle = platform.color;
@@ -715,13 +735,15 @@
       // Clean up any orphaned enemy elements
       cleanupEnemyElements();
       
-      // Optionally, redraw score on canvas if needed.
+      // Add a semi-transparent overlay to make text more readable on the background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.fillRect(5, 5, 150, 60);
+      
+      // Redraw score on canvas
       ctx.fillStyle = 'white';
       ctx.font = "20px Arial";
       ctx.fillText("Score: " + score, 10, 30);
-      ctx.strokeStyle = 'black';
-      ctx.lineWidth = 1;
-      ctx.strokeText("Score: " + score, 10, 30);
+      ctx.fillText("High Score: " + highScore, 10, 55);
       
       requestAnimationFrame(updateGame);
     }
@@ -748,7 +770,21 @@
       ctx.textAlign = "start";
     }
     
-    updateGame(0);
+    // Preload the background image to ensure it's loaded before starting the game
+    const backgroundImg = new Image();
+    backgroundImg.src = "Titan_background.png";
+    backgroundImg.onload = function() {
+      // Start the game loop once the background is loaded
+      updateGame(0);
+    };
+    
+    // If the image fails to load, start the game anyway
+    backgroundImg.onerror = function() {
+      console.error("Background image failed to load");
+      // Fallback to a gradient background
+      gameContainer.style.background = "linear-gradient(to bottom, #87CEEB, #1C2951)";
+      updateGame(0);
+    };
   </script>
 </body>
 </html>
