@@ -61,6 +61,14 @@
       background: url("ironman.png") no-repeat center center / cover;
       z-index: 5;
     }
+    /* Thanos enemy styling */
+    .thanos {
+      position: absolute;
+      width: 50px;
+      height: 75px;
+      background: url("thanos.png") no-repeat center center / cover;
+      z-index: 4;
+    }
     /* Jump pop animation for visual feedback */
     @keyframes jumpPop {
       0%   { transform: translateY(0); }
@@ -184,10 +192,11 @@
     let currentPlatform = null;
     let gameOver = false;
     let firstPlatformRemoved = false;
+    let thanosElements = []; // Store all Thanos enemy elements
     
-    // Enemy dimensions for platform enemies (drawn on canvas)
-    const enemyWidth = 20;
-    const enemyHeight = 20;
+    // Enemy dimensions for platform enemies
+    const enemyWidth = 50; // Updated for Thanos
+    const enemyHeight = 75; // Updated for Thanos
     
     // Platforms array (each will be drawn on the canvas)
     let platforms = [];
@@ -286,15 +295,39 @@
     // Create an enemy for a platform (50/50 chance for static vs. moving)
     function createEnemy(platform) {
       let enemyType = Math.random() < 0.5 ? 'Type1' : 'Type2';
-      return {
-        type: enemyType,
-        x: platform.x + (platform.width / 2) - (enemyWidth / 2),
-        y: platform.y - enemyHeight,
-        width: enemyWidth,
-        height: enemyHeight,
-        direction: 1,
-        speed: 1
-      };
+      
+      // Make the platform wider since it has an enemy
+      platform.width = 150; // Increased from 100 to 150
+      
+      // Create a Thanos element if it's Type1
+      if (enemyType === 'Type1') {
+        const thanosEl = document.createElement('div');
+        thanosEl.classList.add('thanos');
+        gameContainer.appendChild(thanosEl);
+        thanosElements.push(thanosEl);
+        
+        return {
+          type: enemyType,
+          x: platform.x + (platform.width / 2) - (enemyWidth / 2),
+          y: platform.y - enemyHeight,
+          width: enemyWidth,
+          height: enemyHeight,
+          direction: 1,
+          speed: 1,
+          element: thanosEl
+        };
+      } else {
+        // Regular Type2 enemy (red rectangle)
+        return {
+          type: enemyType,
+          x: platform.x + (platform.width / 2) - (enemyWidth / 2),
+          y: platform.y - enemyHeight,
+          width: enemyWidth,
+          height: enemyHeight,
+          direction: 1,
+          speed: 1
+        };
+      }
     }
     
     // Update score when landing on a higher platform (skip first platform)
@@ -395,6 +428,18 @@
       });
     }
     
+    // Clean up Thanos elements when removing a platform
+    function cleanupThanosElements() {
+      thanosElements.forEach(el => {
+        if (!platforms.some(p => p.enemy && p.enemy.element === el)) {
+          el.remove();
+        }
+      });
+      thanosElements = thanosElements.filter(el => 
+        platforms.some(p => p.enemy && p.enemy.element === el)
+      );
+    }
+    
     /***********************
      * Platform Initialization
      ***********************/
@@ -440,6 +485,12 @@
     
     // Recycle a platform that moves off screen
     function recyclePlatform(platform) {
+      // Remove old Thanos element if exists
+      if (platform.enemy && platform.enemy.element) {
+        platform.enemy.element.remove();
+        thanosElements = thanosElements.filter(el => el !== platform.enemy.element);
+      }
+      
       let newY;
       let attempts = 0;
       const maxAttempts = 50;
@@ -537,11 +588,17 @@
         }
       });
       
-      // Update enemy behavior
+      // Update enemy behavior and Thanos positions
       platforms.forEach(platform => {
         if (platform.enemy) {
           platform.enemy.y = platform.y - enemyHeight;
-          if (platform.enemy.type === 'Type2') {
+          
+          if (platform.enemy.type === 'Type1' && platform.enemy.element) {
+            // Update Thanos element position
+            platform.enemy.element.style.left = platform.enemy.x + 'px';
+            platform.enemy.element.style.top = platform.enemy.y + 'px';
+          } else if (platform.enemy.type === 'Type2') {
+            // Moving enemy logic
             platform.enemy.x += platform.enemy.speed * platform.enemy.direction;
             if (platform.enemy.x <= platform.x || (platform.enemy.x + platform.enemy.width) >= (platform.x + platform.width)) {
               platform.enemy.direction *= -1;
@@ -604,7 +661,7 @@
         }
       });
       
-      // Clear canvas and redraw platforms and enemies
+      // Clear canvas and redraw platforms and Type2 enemies
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       platforms.forEach(platform => {
         platform.color = getPlatformColor(platform);
@@ -619,8 +676,9 @@
           ctx.fillStyle = 'green';
           ctx.fillRect(platform.x, platform.y - 5, countdownWidth, 3);
         }
-        if (platform.enemy) {
-          ctx.fillStyle = platform.enemy.type === 'Type1' ? 'blue' : 'red';
+        // Only draw Type2 enemies (red rectangles) directly on canvas
+        if (platform.enemy && platform.enemy.type === 'Type2') {
+          ctx.fillStyle = 'red';
           ctx.fillRect(platform.enemy.x, platform.enemy.y, platform.enemy.width, platform.enemy.height);
         }
       });
@@ -628,6 +686,9 @@
       // Update the Iron Man element's position to follow the player.
       ironmanEl.style.left = player.x + "px";
       ironmanEl.style.top  = player.y + "px";
+      
+      // Clean up any orphaned Thanos elements
+      cleanupThanosElements();
       
       // Optionally, redraw score on canvas if needed.
       ctx.fillStyle = 'white';
