@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Platformer Game with Iron Man</title>
+  <title>Platformer Game with Marvel Heroes</title>
   <style>
     /* General body and container styles */
     body, html {
@@ -34,7 +34,7 @@
       text-shadow: 2px 2px 4px #000;
       z-index: 10;
     }
-    /* Game container: holds the canvas and the Iron Man element */
+    /* Game container: holds the canvas and the player element */
     #gameContainer {
       position: relative;
       width: 400px;
@@ -42,11 +42,68 @@
       margin: 0 auto;
       overflow: hidden;
       border: 2px solid #000;
-      /* Remove the previous background color */
-      /* background: #87CEEB; */
-      /* Add the background image with proper sizing */
       background: url("Titan_background.png") no-repeat center center;
-      background-size: cover; /* Cover ensures the image covers the entire container */
+      background-size: cover;
+      display: flex;
+      justify-content: center;
+    }
+    /* Character Selection Screen */
+    #characterSelect {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    #characterSelect h1 {
+      color: white;
+      font-size: 36px;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+    .character-options {
+      display: flex;
+      gap: 40px;
+    }
+    .character-option {
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .character-option:hover {
+      transform: scale(1.1);
+    }
+    .character-img {
+      width: 150px;
+      height: 225px;
+      border: 3px solid #666;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      object-fit: contain;
+    }
+    /* Make Iron Man image display larger within the container */
+    .character-option:first-child .character-img {
+      object-fit: cover;
+      object-position: center 20%;
+      transform: scale(1.25); /* Increase the image size without changing the container */
+    }
+    .character-option:hover .character-img {
+      border-color: #fff;
+    }
+    .character-name {
+      color: white;
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+    .character-key {
+      color: #888;
+      font-size: 16px;
     }
     /* The canvas (for platforms, enemies, etc.) */
     #gameCanvas {
@@ -54,32 +111,52 @@
       left: 0;
       top: 0;
       z-index: 1;
+      background-color: transparent;
     }
-    /* Iron Man graphic:
-       This element represents your player. It uses a background image (ironman.png)
-       and is absolutely positioned according to game physics. */
-    .ironman {
+    /* Player graphic base styles */
+    .player-base {
       position: absolute;
-      width: 60px;
-      height: 90px;
-      background: url("ironman.png") no-repeat center center / cover;
+      background-repeat: no-repeat;
+      background-position: center bottom; /* Align to bottom */
+      background-size: contain;
       z-index: 5;
     }
-    /* Thanos enemy styling */
+    /* Iron Man graphic */
+    .ironman {
+      width: 120px;
+      height: 180px;
+      background-image: url("ironman.png");
+      background-size: contain;
+      background-position: center bottom;
+    }
+    /* Spider-Man graphic */
+    .spiderman {
+      width: 60px;
+      height: 90px;
+      background-image: url("spiderman.png");
+      background-size: contain;
+      background-position: center bottom;
+    }
+    /* Enemy graphics - made larger */
     .thanos {
       position: absolute;
-      width: 40px;
-      height: 60px;
+      width: 60px;  /* Increased from 40px */
+      height: 80px; /* Increased from 60px */
       background: url("thanos.png") no-repeat center center / cover;
       z-index: 4;
     }
-    /* Mysterio enemy styling */
-    .mysterio {
+    .mysterio, .venom {
       position: absolute;
-      width: 40px;
-      height: 60px;
-      background: url("mysterio.png") no-repeat center center / cover;
+      width: 60px;  /* Increased from 40px */
+      height: 80px; /* Increased from 60px */
+      background: no-repeat center center / cover;
       z-index: 4;
+    }
+    .mysterio {
+      background-image: url("mysterio.png");
+    }
+    .venom {
+      background-image: url("venom.png");
     }
     /* Jump pop animation for visual feedback */
     @keyframes jumpPop {
@@ -87,7 +164,8 @@
       50%  { transform: translateY(-20px); }
       100% { transform: translateY(0); }
     }
-    .ironman.jump {
+    /* Apply jump animation to the player element */
+    #playerCharacter.jump {
       animation: jumpPop 0.3s ease-out;
     }
     /* Bullet style for upward shooting */
@@ -140,25 +218,35 @@
       font-size: 18px;
       margin: 5px 0;
     }
-    /* Make the canvas transparent to let the background show through */
-    #gameCanvas {
-      background-color: transparent;
-    }
   </style>
 </head>
 <body>
-  <!-- Score displays -->
+  <!-- Character Selection Screen -->
+  <div id="characterSelect">
+    <h1>Choose Your Character</h1>
+    <div class="character-options">
+      <div class="character-option" onclick="selectCharacter('ironman')">
+         <img src="ironman.png" alt="Iron Man" class="character-img">
+        <div class="character-name">Iron Man</div>
+        <div class="character-key">Press 'I' to select</div>
+      </div>
+      <div class="character-option" onclick="selectCharacter('spiderman')">
+        <img src="spiderman.png" alt="Spider-Man" class="character-img">
+        <div class="character-name">Spider-Man</div>
+        <div class="character-key">Press 'S' to select</div>
+      </div>
+    </div>
+  </div>
+
   <div id="scoreDisplay">Score: 0</div>
   <div id="highScoreDisplay">High Score: 0</div>
-  
-  <!-- Game container holds both the canvas and the Iron Man character -->
+
   <div id="gameContainer">
     <canvas id="gameCanvas" width="400" height="600"></canvas>
-    <!-- Iron Man element replaces the old red rectangle player -->
-    <div id="ironman" class="ironman"></div>
+    <!-- This is the player character element -->
+    <div id="playerCharacter" class="player-base"></div>
   </div>
-  
-  <!-- Game Over Overlay -->
+
   <div id="gameOverOverlay">
     <h1>GAME OVER</h1>
     <div id="finalScoreDisplay"></div>
@@ -167,14 +255,64 @@
     <ol id="leaderboardList"></ol>
     <p>Press <strong>Q</strong> to Quit, <strong>R</strong> or <strong>Space</strong> to Restart</p>
   </div>
-  
+
   <script>
+    /***********************
+     * Character Selection
+     ***********************/
+    let selectedCharacter = null;
+    const characterSelect = document.getElementById('characterSelect');
+    const playerEl = document.getElementById('playerCharacter');
+
+    // Character-specific settings
+    const characterSettings = {
+      'ironman': {
+        width: 120,    // Iron Man dimensions
+        height: 180,   // Iron Man dimensions
+        className: 'ironman'
+      },
+      'spiderman': {
+        width: 60,     // Spider-Man specific dimensions
+        height: 90,    // Spider-Man specific dimensions
+        className: 'spiderman'
+      }
+    };
+
+    function selectCharacter(character) {
+      selectedCharacter = character;
+      characterSelect.style.display = 'none';
+
+      // Remove any existing character class and add the chosen one.
+      playerEl.classList.remove('ironman', 'spiderman');
+      
+      // Apply character-specific settings
+      const settings = characterSettings[character];
+      playerEl.classList.add(settings.className);
+      
+      // Set player physics to match character size
+      player.width = settings.width;
+      player.height = settings.height;
+      
+      // Start the game loop
+      startGame();
+    }
+
+    // Listen for keyboard selection on character select screen
+    document.addEventListener('keydown', function(e) {
+      if (characterSelect.style.display !== 'none') {
+        if (e.key.toLowerCase() === 'i') {
+          selectCharacter('ironman');
+        } else if (e.key.toLowerCase() === 's') {
+          selectCharacter('spiderman');
+        }
+      }
+    });
+
     /***********************
      * Initialization
      ***********************/
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const ironmanEl = document.getElementById('ironman');
     const scoreDisplay = document.getElementById('scoreDisplay');
     const highScoreDisplay = document.getElementById('highScoreDisplay');
     const gameOverOverlay = document.getElementById('gameOverOverlay');
@@ -182,43 +320,43 @@
     const leaderboardList = document.getElementById('leaderboardList');
     const playAgainButton = document.getElementById('playAgainButton');
     const gameContainer = document.getElementById('gameContainer');
-    
+
     // Game settings
     const gravity = 0.5;
     const friction = 0.8;
-    const baseJump = -10; // Base jump velocity
+    const baseJump = -12;  // Increased jump power
     let score = 0;
     let highScore = 0;
-    
-    // Player physics object (not drawn; its data determines positioning)
+
+    // Default player physics object; dimensions will be updated after character select
     let player = {
-      x: 180,    // Starting X coordinate
-      y: 450,    // Starting Y coordinate
-      width: 60, // Match the ironman element width
-      height: 90, // Match the ironman element height
+      x: 180, // Starting X coordinate; may adjust after selection
+      y: 450, // Starting Y coordinate
+      width: 80,  // Will be overwritten by selectCharacter()
+      height: 140, // Will be overwritten by selectCharacter()
       speed: 5,
       velX: 0,
       velY: 0,
       jumping: false
     };
-    
-    // Track additional data
+
     let highestPlatformIndex = -1;
     let absoluteHeight = 0;
     let currentPlatform = null;
     let gameOver = false;
     let firstPlatformRemoved = false;
-    let thanosElements = []; // Store all Thanos enemy elements
-    let mysterioElements = []; // Store all Mysterio enemy elements
+
+    // Enemy dimensions (increased size)
+    const enemyWidth = 60;  // Increased from 40
+    const enemyHeight = 80; // Increased from 60
     
-    // Enemy dimensions for platform enemies
-    const enemyWidth = 40; // Updated for characters
-    const enemyHeight = 60; // Updated for characters
-    
-    // Platforms array (each will be drawn on the canvas)
+    // Platform size settings
+    const standardPlatformWidth = 100;
+    const platformWithEnemyWidth = 150; // Wider platforms for enemies
+
+    // Platforms array
     let platforms = [];
-    
-    // Create the special starting platform (the first level)
+    // Create special starting platform
     let firstPlatform = {
       id: -1,
       x: 0,
@@ -226,9 +364,9 @@
       width: canvas.width,
       height: 10,
       absoluteY: canvas.height - 10,
-      scored: true, // Marked so no score is added when landing here
+      scored: true,
       standingTime: 0,
-      fallCountdown: Infinity, // Won't fall
+      fallCountdown: Infinity,
       isFalling: false,
       fallSpeed: 0,
       color: '#2E8B57',
@@ -236,7 +374,7 @@
       isFirstPlatform: true
     };
     platforms.push(firstPlatform);
-    
+
     /***********************
      * Input Handling
      ***********************/
@@ -248,16 +386,15 @@
         player.jumping = true;
         player.velY = baseJump - Math.abs(player.velX);
         currentPlatform = null;
-        // Trigger jump pop animation on the Iron Man element
-        if (!ironmanEl.classList.contains('jump')) {
-          ironmanEl.classList.add('jump');
+        if (!playerEl.classList.contains('jump')) {
+          playerEl.classList.add('jump');
           setTimeout(() => {
-            ironmanEl.classList.remove('jump');
+            playerEl.classList.remove('jump');
           }, 300);
         }
       }
-      // Shoot upward on "S" (either uppercase or lowercase)
-      if (e.key === 's' || e.key === 'S') {
+      // Shoot upward on "W" (keycode 87) to avoid conflict with selection keys
+      if (e.keyCode === 87) {
         shootUp();
       }
     });
@@ -271,28 +408,24 @@
         if (e.key === 'q' || e.key === 'Q') {
           quitGame();
         }
-        if (e.key === 'r' || e.key === ' ') {
+        if (e.key === 'r' || e.keyCode === 32) {
           location.reload();
         }
       }
     });
-    
+
     /***********************
      * Utility Functions
      ***********************/
-    
-    // Quit game by replacing body content with a thank-you message.
     function quitGame() {
       document.body.innerHTML =
         "<h1 style='color: white; text-align: center; margin-top: 50vh;'>Thanks for playing!</h1>";
     }
-    
-    // Returns enemy spawn probability based on score: starts at 5%, increases by 1% per 200 score (max 20%).
+
     function getEnemyProbability() {
       return Math.min(0.05 + Math.floor(score / 200) * 0.01, 0.20);
     }
-    
-    // Determine platform fall countdown based on current score.
+
     function getFallCountdown() {
       const baseTime = 5;
       const minTime = 0.5;
@@ -308,18 +441,16 @@
       }
       return newTime;
     }
-    
-    // Create an enemy for a platform (50/50 chance for static vs. moving)
+
+    // Create an enemy for a platform with larger enemy sizes
     function createEnemy(platform) {
       let enemyType = Math.random() < 0.5 ? 'Type1' : 'Type2';
-      
+      // For static enemy (Type1), use Thanos; for moving enemy (Type2), use Mysterio for Iron Man and Venom for Spider-Man.
       if (enemyType === 'Type1') {
-        // Create a Thanos element
+        // Create a DOM element for Thanos (static)
         const thanosEl = document.createElement('div');
         thanosEl.classList.add('thanos');
         gameContainer.appendChild(thanosEl);
-        thanosElements.push(thanosEl);
-        
         return {
           type: enemyType,
           x: platform.x + (platform.width / 2) - (enemyWidth / 2),
@@ -327,16 +458,15 @@
           width: enemyWidth,
           height: enemyHeight,
           direction: 1,
-          speed: 1,
+          speed: 0,
           element: thanosEl
         };
       } else {
-        // Create a Mysterio element for Type2 (moving enemy)
-        const mysterioEl = document.createElement('div');
-        mysterioEl.classList.add('mysterio');
-        gameContainer.appendChild(mysterioEl);
-        mysterioElements.push(mysterioEl);
-        
+        const movingEnemyEl = document.createElement('div');
+        // If Iron Man, use Mysterio; if Spider-Man, use Venom
+        const enemyClass = selectedCharacter === 'spiderman' ? 'venom' : 'mysterio';
+        movingEnemyEl.classList.add(enemyClass);
+        gameContainer.appendChild(movingEnemyEl);
         return {
           type: enemyType,
           x: platform.x + (platform.width / 2) - (enemyWidth / 2),
@@ -345,12 +475,11 @@
           height: enemyHeight,
           direction: 1,
           speed: 1,
-          element: mysterioEl
+          element: movingEnemyEl
         };
       }
     }
-    
-    // Update score when landing on a higher platform (skip first platform)
+
     function updateScore(platformId) {
       if (platformId > highestPlatformIndex) {
         let platform = platforms.find(p => p.id === platformId);
@@ -374,16 +503,15 @@
         flashScoreDisplay();
       }
     }
-    
-    // Brief flash effect on the score display
+
     function flashScoreDisplay() {
+      const oldColor = scoreDisplay.style.color;
       scoreDisplay.style.color = "#FFFF00";
       setTimeout(() => {
-        scoreDisplay.style.color = "white";
+        scoreDisplay.style.color = oldColor;
       }, 300);
     }
-    
-    // Get the current color of a platform based on its state
+
     function getPlatformColor(platform) {
       if (platform.isFalling) return '#8B4513';
       if (platform === currentPlatform) {
@@ -394,36 +522,42 @@
       }
       return platform.isFirstPlatform ? '#2E8B57' : '#593A0A';
     }
-    
-    // Check if the new platform Y position is valid (sufficient spacing)
+
+    // Modified to ensure platforms are properly spaced
     function isValidPlatformPosition(newY, platforms) {
-      const minVerticalSpacing = player.height + 10;
+      // Get maximum character height for proper spacing
+      const maxCharHeight = Math.max(
+        characterSettings['ironman'].height,
+        characterSettings['spiderman'].height
+      );
+      
+      // Required vertical space between platforms
+      const minVerticalSpacing = maxCharHeight + 30; // Added extra space
+      
       return platforms.every(platform => Math.abs(platform.y - newY) >= minVerticalSpacing);
     }
-    
-    // Update the leaderboard in localStorage with the final score.
+
     function updateLeaderboard(finalScore) {
       let leaderboard = JSON.parse(localStorage.getItem("leaderboard") || "[]");
       leaderboard.push(finalScore);
       leaderboard.sort((a, b) => b - a);
-      leaderboard = leaderboard.slice(0, 5); // Keep only top 5 scores
+      leaderboard = leaderboard.slice(0, 5);
       localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
       return leaderboard;
     }
-    
-    // Show the Game Over overlay along with the leaderboard.
+
     function showGameOverOverlay() {
       gameOver = true;
       const leaderboard = updateLeaderboard(score);
       finalScoreDisplay.textContent = "Your Score: " + score;
       leaderboardList.innerHTML = "";
-      
       // Add a header for the top 5
       const header = document.createElement("h3");
       header.textContent = "Top 5 Best Scores";
       header.style.marginBottom = "10px";
-      leaderboardList.before(header);
-      
+      if (!leaderboardList.previousElementSibling || leaderboardList.previousElementSibling.tagName !== 'H3') {
+        leaderboardList.before(header);
+      }
       leaderboard.forEach((s) => {
         let li = document.createElement("li");
         li.style.fontSize = "24px";
@@ -433,21 +567,17 @@
       });
       gameOverOverlay.style.display = "block";
     }
-    
-    // Restart game when Play Again is clicked.
+
     playAgainButton.addEventListener("click", function() {
       location.reload();
     });
-    
-    // Shoot upward: create a bullet that moves upward from Iron Man's top-center.
+
     function shootUp() {
       const bullet = document.createElement('div');
       bullet.classList.add('bullet', 'shootUp');
-      // Determine Iron Man's position relative to game container.
-      const rect = ironmanEl.getBoundingClientRect();
+      const rect = playerEl.getBoundingClientRect();
       const containerRect = gameContainer.getBoundingClientRect();
-      // Place bullet at top-center of Iron Man.
-      const startX = rect.left - containerRect.left + (rect.width / 2) - 3; // Bullet width: 6px
+      const startX = rect.left - containerRect.left + (rect.width / 2) - 3;
       const startY = rect.top - containerRect.top;
       bullet.style.left = startX + 'px';
       bullet.style.top = startY + 'px';
@@ -456,54 +586,37 @@
         bullet.remove();
       });
     }
-    
-    // Clean up enemy elements when removing a platform
-    function cleanupEnemyElements() {
-      // Clean up Thanos elements
-      thanosElements.forEach(el => {
-        if (!platforms.some(p => p.enemy && p.enemy.element === el)) {
-          el.remove();
-        }
-      });
-      thanosElements = thanosElements.filter(el => 
-        platforms.some(p => p.enemy && p.enemy.element === el)
-      );
-      
-      // Clean up Mysterio elements
-      mysterioElements.forEach(el => {
-        if (!platforms.some(p => p.enemy && p.enemy.element === el)) {
-          el.remove();
-        }
-      });
-      mysterioElements = mysterioElements.filter(el => 
-        platforms.some(p => p.enemy && p.enemy.element === el)
-      );
-    }
-    
+
     /***********************
      * Platform Initialization
      ***********************/
-    
-    // Create additional platforms (apart from firstPlatform)
     for (let i = 0; i < 10; i++) {
       const platformScore = (i + 1) * 10;
       const milestoneValue = Math.floor(i / 10) * 100 + 100;
       let newY;
       let attempts = 0;
-      const maxAttempts = 50;
+      const maxAttempts = 100; // Increased from 50 for better chance of finding valid position
+      
+      // Position platforms with greater vertical distance
       do {
-        newY = canvas.height - (100 * i) - 50 + (Math.random() * 40 - 20);
+        // Increase vertical spacing between platforms
+        const basePosition = canvas.height - (180 * i) - 50; // Increased multiplier from 100 to 180
+        newY = basePosition + (Math.random() * 40 - 20);
         attempts++;
         if (attempts >= maxAttempts) {
-          newY = canvas.height - (100 * i) - 50;
+          newY = basePosition;
           break;
         }
       } while (!isValidPlatformPosition(newY, platforms));
+      
+      // Decide if this platform will have an enemy
+      const willHaveEnemy = Math.random() < getEnemyProbability();
+      
       let platform = {
         id: i,
-        x: Math.random() * (canvas.width - 50),
+        x: Math.random() * (canvas.width - (willHaveEnemy ? platformWithEnemyWidth : standardPlatformWidth)),
         y: newY,
-        width: 100,
+        width: willHaveEnemy ? platformWithEnemyWidth : standardPlatformWidth, // Wider platform if it has an enemy
         height: 10,
         absoluteY: newY,
         scored: false,
@@ -511,212 +624,238 @@
         fallCountdown: getFallCountdown(),
         isFalling: false,
         fallSpeed: 0,
-        color: 'black',
+        color: '#593A0A',
         scoreValue: platformScore,
         isMilestone: (i + 1) % 10 === 0,
         milestoneValue: milestoneValue,
         enemy: null
       };
-      if (Math.random() < getEnemyProbability()) {
+      
+      if (willHaveEnemy) {
         platform.enemy = createEnemy(platform);
       }
+      
       platforms.push(platform);
     }
-    
-    // Recycle a platform that moves off screen
+
     function recyclePlatform(platform) {
-      // Remove old enemy element if exists
       if (platform.enemy && platform.enemy.element) {
         platform.enemy.element.remove();
-        
-        if (platform.enemy.type === 'Type1') {
-          thanosElements = thanosElements.filter(el => el !== platform.enemy.element);
-        } else {
-          mysterioElements = mysterioElements.filter(el => el !== platform.enemy.element);
-        }
       }
-      
       let newY;
       let attempts = 0;
-      const maxAttempts = 50;
+      const maxAttempts = 100; // Increased from 50
       do {
-        newY = -50 - (Math.random() * 40);
+        newY = -150 - (Math.random() * 100); // Increased negative position for more spacing
         attempts++;
         if (attempts >= maxAttempts) {
-          newY = -50;
+          newY = -150;
           break;
         }
       } while (!isValidPlatformPosition(newY, platforms));
+      
+      // Decide if recycled platform will have an enemy
+      const willHaveEnemy = Math.random() < getEnemyProbability();
+      
       platform.y = newY;
+      platform.width = willHaveEnemy ? platformWithEnemyWidth : standardPlatformWidth;
       platform.x = Math.random() * (canvas.width - platform.width);
-      platform.absoluteY = platform.absoluteY - canvas.height;
+      platform.absoluteY = platform.absoluteY - canvas.height - platform.height;
       platform.scored = false;
       platform.standingTime = 0;
       platform.isFalling = false;
       platform.fallSpeed = 0;
-      platform.color = 'black';
+      platform.color = '#593A0A';
       let maxId = Math.max(...platforms.map(p => p.id));
       platform.id = maxId + 1;
       platform.scoreValue = (platform.id + 1) * 10;
       platform.isMilestone = (platform.id + 1) % 10 === 0;
       platform.milestoneValue = Math.floor(platform.id / 10) * 100 + 100;
-      if (Math.random() < getEnemyProbability()) {
+      
+      if (willHaveEnemy) {
         platform.enemy = createEnemy(platform);
       } else {
         platform.enemy = null;
       }
     }
-    
-    // Simple AABB collision detection
+
+    // Precise center-to-center collision detection
     function isColliding(obj1, obj2) {
-      return (
-        obj1.x < obj2.x + obj2.width &&
-        obj1.x + obj1.width > obj2.x &&
-        obj1.y < obj2.y + obj2.height &&
-        obj1.y + obj1.height > obj2.y
-      );
+      if (!obj2 || obj2.width === undefined || obj2.height === undefined) {
+        return false;
+      }
+      // Calculate center points
+      const obj1CenterX = obj1.x + (obj1.width / 2);
+      const obj1CenterY = obj1.y + (obj1.height / 2);
+      const obj2CenterX = obj2.x + (obj2.width / 2);
+      const obj2CenterY = obj2.y + (obj2.height / 2);
+      
+      // Define collision box size (smaller than actual sprites for more precise collision)
+      const collisionWidth = 30;  // Half the enemy width
+      const collisionHeight = 40; // Half the enemy height
+      
+      // Check if centers are within the collision box
+      return Math.abs(obj1CenterX - obj2CenterX) < collisionWidth &&
+             Math.abs(obj1CenterY - obj2CenterY) < collisionHeight;
     }
-    
+
     /***********************
      * Game Loop
      ***********************/
     let lastTime = 0;
     function updateGame(timestamp) {
-      if (gameOver) return;
-      const deltaTime = timestamp - lastTime;
-      lastTime = timestamp;
-      
-      // Handle left/right movement from arrow keys
-      if (keys[39]) { // Right arrow
-        if (player.velX < player.speed) player.velX++;
-      }
-      if (keys[37]) { // Left arrow
-        if (player.velX > -player.speed) player.velX--;
-      }
-      player.velX *= friction;
-      player.velY += gravity;
-      player.x += player.velX;
-      player.y += player.velY;
-      
-      // Reset current platform if jumping or moving horizontally
-      if (player.jumping || Math.abs(player.velX) > 0.5) {
-        currentPlatform = null;
-      }
-      
-      absoluteHeight += player.velY < 0 ? -player.velY : 0;
-      
-      // Remove the first platform once score reaches 50.
-      if (score >= 50 && !firstPlatformRemoved) {
-        platforms = platforms.filter(p => !p.isFirstPlatform);
-        firstPlatformRemoved = true;
-      }
-      
-      // Screen scroll: if the player is in the top quarter, scroll everything down
-      if (player.y < canvas.height / 4) {
-        let scrollAmount = Math.abs(player.velY);
-        player.y += scrollAmount;
+      if (!gameOver) {
+        if (keys[39]) {
+          if (player.velX < player.speed) player.velX++;
+        }
+        if (keys[37]) {
+          if (player.velX > -player.speed) player.velX--;
+        }
+        player.velX *= friction;
+        player.velY += gravity;
+        player.x += player.velX;
+        player.y += player.velY;
+
+        if (player.jumping || Math.abs(player.velX) > 0.1) {
+          if (currentPlatform) {
+            if (player.x + player.width < currentPlatform.x || player.x > currentPlatform.x + currentPlatform.width) {
+              currentPlatform.standingTime = 0;
+              currentPlatform = null;
+            } else if (player.jumping) {
+              currentPlatform.standingTime = 0;
+              currentPlatform = null;
+            }
+          } else {
+            currentPlatform = null;
+          }
+        }
+
+        absoluteHeight += player.velY < 0 ? -player.velY : 0;
+
+        if (score >= 50 && !firstPlatformRemoved) {
+          platforms = platforms.filter(p => !p.isFirstPlatform);
+          firstPlatformRemoved = true;
+        }
+
+        let scrollAmount = 0;
+        if (player.y < canvas.height / 4) {
+          scrollAmount = canvas.height / 4 - player.y;
+          player.y += scrollAmount;
+          platforms.forEach(platform => {
+            platform.y += scrollAmount;
+            if (platform.enemy) {
+              platform.enemy.y += scrollAmount;
+            }
+            if (platform.y > canvas.height) {
+              recyclePlatform(platform);
+            }
+          });
+        }
+
         platforms.forEach(platform => {
-          platform.y += scrollAmount;
-          platform.absoluteY += scrollAmount;
-          if (platform.y > canvas.height) {
-            recyclePlatform(platform);
+          if (platform.isFalling) {
+            platform.fallSpeed += 0.1;
+            platform.y += platform.fallSpeed;
+            if (platform.enemy) {
+              platform.enemy.y += platform.fallSpeed;
+            }
+          }
+        });
+
+        platforms.forEach(platform => {
+          if (platform.enemy) {
+            platform.enemy.y = platform.y - enemyHeight;
+            if (platform.enemy.type === 'Type2') {
+              platform.enemy.x += platform.enemy.speed * platform.enemy.direction;
+              if (platform.enemy.x <= platform.x || (platform.enemy.x + platform.enemy.width) >= (platform.x + platform.width)) {
+                platform.enemy.direction *= -1;
+                platform.enemy.x = Math.max(platform.x, Math.min(platform.enemy.x, platform.x + platform.width - platform.enemy.width));
+              }
+            } else {
+              platform.enemy.x = platform.x + (platform.width / 2) - (enemyWidth / 2);
+            }
+            if (platform.enemy.element) {
+              platform.enemy.element.style.left = platform.enemy.x + 'px';
+              platform.enemy.element.style.top = platform.enemy.y + 'px';
+            }
+          }
+        });
+
+        if (player.x >= canvas.width - player.width)
+          player.x = canvas.width - player.width;
+        else if (player.x <= 0)
+          player.x = 0;
+
+        if (player.y > canvas.height && score >= 50) {
+          showGameOverOverlay();
+          gameOver = true;
+        } else if (player.y > canvas.height) {
+          player.y = canvas.height - player.height;
+          player.velY = baseJump;
+          player.jumping = false;
+        }
+
+        let onPlatform = false;
+        platforms.forEach(platform => {
+          if (
+            !platform.isFalling &&
+            player.x < platform.x + platform.width &&
+            player.x + player.width > platform.x &&
+            player.y + player.height >= platform.y &&
+            player.y + player.height <= platform.y + platform.height + Math.abs(player.velY) &&
+            player.velY >= 0
+          ) {
+            player.jumping = false;
+            player.velY = 0;
+            player.y = platform.y - player.height;
+            onPlatform = true;
+            if (currentPlatform !== platform) {
+              if (currentPlatform) currentPlatform.standingTime = 0;
+              currentPlatform = platform;
+              currentPlatform.standingTime = 0;
+            }
+            if (!platform.isFirstPlatform && !platform.scored) {
+              updateScore(platform.id);
+              platform.scored = true;
+            }
+            if (Math.abs(player.velX) < 0.5 && !player.jumping) {
+              platform.standingTime++;
+              if (platform.standingTime >= platform.fallCountdown * 60) {
+                platform.isFalling = true;
+                platform.fallSpeed = 0.5;
+                currentPlatform = null;
+              }
+            } else {
+              platform.standingTime = 0;
+            }
+          }
+        });
+        if (!onPlatform && player.velY > 0) {
+          currentPlatform = null;
+          player.jumping = true;
+        }
+
+        platforms.forEach(platform => {
+          if (platform.enemy && isColliding(player, platform.enemy)) {
+            showGameOverOverlay();
+            gameOver = true;
           }
         });
       }
-      
-      // Update falling platforms
-      platforms.forEach(platform => {
-        if (platform.isFalling) {
-          platform.fallSpeed += 0.1;
-          platform.y += platform.fallSpeed;
-          platform.absoluteY += platform.fallSpeed;
-        }
-      });
-      
-      // Update enemy behavior and positions
-      platforms.forEach(platform => {
-        if (platform.enemy) {
-          platform.enemy.y = platform.y - enemyHeight;
-          
-          // Update enemy element position
-          if (platform.enemy.element) {
-            platform.enemy.element.style.left = platform.enemy.x + 'px';
-            platform.enemy.element.style.top = platform.enemy.y + 'px';
-          }
-          
-          // Moving behavior for Type2 enemies (Mysterio)
-          if (platform.enemy.type === 'Type2') {
-            platform.enemy.x += platform.enemy.speed * platform.enemy.direction;
-            if (platform.enemy.x <= platform.x || (platform.enemy.x + platform.enemy.width) >= (platform.x + platform.width)) {
-              platform.enemy.direction *= -1;
-            }
-          }
-        }
-      });
-      
-      // Constrain player horizontally
-      if (player.x >= canvas.width - player.width)
-        player.x = canvas.width - player.width;
-      else if (player.x <= 0)
-        player.x = 0;
-      
-      // Game over if player falls off screen
-      if (player.y > canvas.height) {
-        showGameOverOverlay();
-        return;
-      }
-      
-      // Platform collision detection
-      let onPlatform = false;
-      platforms.forEach(platform => {
-        if (
-          !platform.isFalling &&
-          player.x < platform.x + platform.width &&
-          player.x + player.width > platform.x &&
-          player.y + player.height > platform.y &&
-          player.y + player.height < platform.y + platform.height &&
-          player.velY >= 0
-        ) {
-          player.jumping = false;
-          player.velY = 0;
-          player.y = platform.y - player.height;
-          onPlatform = true;
-          if (currentPlatform !== platform) {
-            if (currentPlatform) currentPlatform.standingTime = 0;
-            currentPlatform = platform;
-          }
-          if (!platform.isFirstPlatform && !platform.scored) {
-            updateScore(platform.id);
-            platform.scored = true;
-          }
-          if (Math.abs(player.velX) < 0.5) {
-            platform.standingTime++;
-            if (platform.standingTime >= platform.fallCountdown * 60) {
-              platform.isFalling = true;
-              platform.fallSpeed = 0.5;
-              currentPlatform = null;
-            }
-          }
-        }
-      });
-      if (!onPlatform) currentPlatform = null;
-      
-      // Collision detection with enemies
-      platforms.forEach(platform => {
-        if (platform.enemy && isColliding(player, platform.enemy)) {
-          showGameOverOverlay();
-        }
-      });
-      
-      // Clear canvas and redraw platforms
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Make the canvas transparent to show the background image
-      // We'll only draw the actual platforms now
       platforms.forEach(platform => {
         platform.color = getPlatformColor(platform);
         ctx.fillStyle = platform.color;
         ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+        
+        // Add highlight for platforms with enemies
+        if (platform.enemy) {
+          ctx.strokeStyle = 'orange';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
+        }
+        
         if (platform.isMilestone) {
           drawScoreBox(platform.x + platform.width / 2 - 15, platform.y - 15, platform.milestoneValue);
         }
@@ -727,28 +866,26 @@
           ctx.fillRect(platform.x, platform.y - 5, countdownWidth, 3);
         }
       });
-      
-      // Update the Iron Man element's position to follow the player.
-      ironmanEl.style.left = player.x + "px";
-      ironmanEl.style.top  = player.y + "px";
-      
-      // Clean up any orphaned enemy elements
-      cleanupEnemyElements();
-      
-      // Add a semi-transparent overlay to make text more readable on the background
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-      ctx.fillRect(5, 5, 150, 60);
-      
-      // Redraw score on canvas
+
+      // Update player element position
+      playerEl.style.left = player.x + "px";
+      playerEl.style.top = player.y + "px";
+
       ctx.fillStyle = 'white';
       ctx.font = "20px Arial";
-      ctx.fillText("Score: " + score, 10, 30);
-      ctx.fillText("High Score: " + highScore, 10, 55);
-      
+      ctx.textAlign = "left";
+      ctx.fillText("Score: " + score, 20, 30);
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 1;
+      ctx.strokeText("Score: " + score, 20, 30);
+
+      ctx.textAlign = "right";
+      ctx.fillText("High Score: " + highScore, canvas.width - 20, 30);
+      ctx.strokeText("High Score: " + highScore, canvas.width - 20, 30);
+
       requestAnimationFrame(updateGame);
     }
-    
-    // Draw a small wooden box for milestone score display.
+
     function drawScoreBox(x, y, scoreValue) {
       ctx.fillStyle = '#8B4513';
       ctx.fillRect(x, y, 30, 20);
@@ -769,22 +906,28 @@
       ctx.fillText(scoreValue, x + 15, y + 14);
       ctx.textAlign = "start";
     }
-    
-    // Preload the background image to ensure it's loaded before starting the game
+
+    // Preload background image
     const backgroundImg = new Image();
     backgroundImg.src = "Titan_background.png";
     backgroundImg.onload = function() {
-      // Start the game loop once the background is loaded
-      updateGame(0);
+      console.log("Background loaded.");
+      highScore = parseInt(localStorage.getItem("highScore") || "0");
+      highScoreDisplay.textContent = "High Score: " + highScore;
     };
-    
-    // If the image fails to load, start the game anyway
     backgroundImg.onerror = function() {
       console.error("Background image failed to load");
-      // Fallback to a gradient background
       gameContainer.style.background = "linear-gradient(to bottom, #87CEEB, #1C2951)";
-      updateGame(0);
+      highScore = parseInt(localStorage.getItem("highScore") || "0");
+      highScoreDisplay.textContent = "High Score: " + highScore;
     };
+
+    function startGame() {
+      highScore = parseInt(localStorage.getItem("highScore") || "0");
+      highScoreDisplay.textContent = "High Score: " + highScore;
+      // Start the game loop
+      requestAnimationFrame(updateGame);
+    }
   </script>
 </body>
 </html>
