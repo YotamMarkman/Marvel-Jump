@@ -27,6 +27,10 @@ function gameLoop() {
     
     // Draw score
     drawScore();
+    
+    // Draw collision boxes for debugging (uncomment to enable)
+    // window.debugMode = true; // Enable for debugging
+    // drawCollisionBoxes();
   }
   
   // Continue game loop

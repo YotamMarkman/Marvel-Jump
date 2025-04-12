@@ -27,38 +27,69 @@ function initPlatforms() {
     isMoving: false,
     moveDirection: null,
     originalY: canvas.height - 10,
-    displacement: 0
+    displacement: 0,
+    isMilestone: false,
+    milestoneValue: 0
   };
   
   platforms.push(firstPlatform);
   
-  // Create initial platforms
+  // Create initial platforms with proper spacing
+  const firstPlatformY = canvas.height - 200; // Start position for first platform
+  let lastY = firstPlatformY;
+  
   for (let i = 0; i < 10; i++) {
-    createPlatform(i);
+    // Create platform at appropriate height from previous platform
+    const newPlatform = createPlatformAtHeight(i, lastY);
+    lastY = newPlatform.y; // Update lastY for next platform
+    platforms.push(newPlatform);
   }
 }
 
-// Create a new platform
-function createPlatform(id, isRecycled = false) {
+// Create a platform at an appropriate height from previous platform
+function createPlatformAtHeight(id, lastY) {
+  // Calculate platform score
   const platformScore = (id + 1) * 10;
-  const milestoneValue = Math.floor(id / 10) * 100 + 100;
   
+  // Determine if this is a milestone platform (divisible by 100)
+  const isMilestone = platformScore % 100 === 0;
+  // Set milestone value to the actual score if it's a milestone
+  const milestoneValue = isMilestone ? platformScore : 0;
+  
+  // Calculate min and max allowed Y positions
+  const ironManHeight = CHARACTER_SETTINGS['ironman'].height;
+  const spiderManHeight = CHARACTER_SETTINGS['spiderman'].height;
+  const maxCharHeight = Math.max(ironManHeight, spiderManHeight);
+  
+  // Minimum height difference: character can jump to it (jump height)
+  const jumpHeight = Math.abs(GAME_CONSTANTS.BASE_JUMP) * 2; // Approximate jump height
+  // Maximum height difference: not too far to jump
+  const maxHeightDiff = jumpHeight * 0.9; // 90% of jump height
+  // Minimum height difference: not too close (at least character height)
+  const minHeightDiff = maxCharHeight + 30;
+  
+  // Calculate a valid Y position range
+  const minY = lastY - maxHeightDiff; // Can't be too high (limited by jump height)
+  const maxY = lastY - minHeightDiff; // Can't be too close to previous platform
+  
+  // Calculate random position within valid range
   let newY;
-  let attempts = 0;
-  const maxAttempts = 100;
+  if (minY < maxY) {
+    // Normal case: random position within range
+    newY = minY + Math.random() * (maxY - minY);
+  } else {
+    // Edge case: use minimum valid height if range is invalid
+    newY = minY;
+  }
   
-  // Find a valid position
-  do {
-    const basePosition = isRecycled ? 
-                      -150 - (Math.random() * 100) : 
-                      canvas.height - (180 * id) - 50;
-    newY = basePosition + (Math.random() * 40 - 20);
-    attempts++;
-    if (attempts >= maxAttempts) {
-      newY = basePosition;
-      break;
-    }
-  } while (!isValidPlatformPosition(newY));
+  // Safety bound checks
+  if (id === 0) {
+    // First platform should be reachable from ground
+    newY = Math.min(newY, canvas.height - jumpHeight);
+  }
+  
+  // Make sure Y is not negative (above screen)
+  newY = Math.max(newY, 50);
   
   // Decide platform characteristics
   const willHaveEnemy = Math.random() < getEnemyProbability();
@@ -71,10 +102,14 @@ function createPlatform(id, isRecycled = false) {
   const isMoving = movingRandom < 6;
   const moveDirection = movingRandom < 3 ? 'up' : 'down';
   
+  // Calculate safe X position to prevent platform from going off screen
+  const maxX = canvas.width - width;
+  const x = Math.random() * maxX;
+  
   // Create platform object
   let platform = {
     id: id,
-    x: Math.random() * (canvas.width - width),
+    x: x,
     y: newY,
     width: width,
     height: 10,
@@ -86,7 +121,7 @@ function createPlatform(id, isRecycled = false) {
     fallSpeed: 0,
     color: '#593A0A',
     scoreValue: platformScore,
-    isMilestone: (id + 1) % 10 === 0,
+    isMilestone: isMilestone,
     milestoneValue: milestoneValue,
     enemy: null,
     // Moving platform properties
@@ -101,13 +136,6 @@ function createPlatform(id, isRecycled = false) {
     platform.enemy = createEnemy(platform);
   }
   
-  // Handle recycled platform's absolute Y position
-  if (isRecycled) {
-    platform.absoluteY = platform.absoluteY - canvas.height - platform.height;
-  } else {
-    platforms.push(platform);
-  }
-  
   return platform;
 }
 
@@ -120,32 +148,100 @@ function recyclePlatform(platform) {
   
   // Find highest platform ID
   const maxId = Math.max(...platforms.map(p => p.id));
+  const newId = maxId + 1;
   
-  // Create new platform properties
-  const recycledPlatform = createPlatform(maxId + 1, true);
+  // Calculate new platform score
+  const newScore = (newId + 1) * 10;
   
-  // Copy new properties to existing platform object
-  for (const prop in recycledPlatform) {
-    platform[prop] = recycledPlatform[prop];
-  }
+  // Determine if this will be a milestone platform
+  const isMilestone = newScore % 100 === 0;
+  const milestoneValue = isMilestone ? newScore : 0;
   
-  return platform;
-}
-
-// Check if a platform position is valid
-function isValidPlatformPosition(newY) {
-  // Get maximum character height for proper spacing
+  // Find the highest platform (lowest Y value)
+  let highestPlatform = platforms[0];
+  platforms.forEach(p => {
+    if (p.y < highestPlatform.y) {
+      highestPlatform = p;
+    }
+  });
+  
+  // Get height of characters
   const maxCharHeight = Math.max(
     CHARACTER_SETTINGS['ironman'].height,
     CHARACTER_SETTINGS['spiderman'].height
   );
   
-  // Required vertical space between platforms
-  const minVerticalSpacing = maxCharHeight + 30;
+  // Calculate minimum and maximum height difference
+  const jumpHeight = Math.abs(GAME_CONSTANTS.BASE_JUMP) * 2;
+  const maxHeightDiff = jumpHeight * 0.9;
+  const minHeightDiff = maxCharHeight + 30;
   
-  return platforms.every(platform => 
-    Math.abs(platform.y - newY) >= minVerticalSpacing
-  );
+  // Calculate new Y position
+  const newY = highestPlatform.y - minHeightDiff - (Math.random() * (maxHeightDiff - minHeightDiff));
+  const absoluteY = highestPlatform.absoluteY - minHeightDiff - (Math.random() * (maxHeightDiff - minHeightDiff));
+  
+  // Decide if recycled platform will have an enemy
+  const willHaveEnemy = Math.random() < getEnemyProbability();
+  
+  // Decide if this recycled platform will move (6% chance - 3% up, 3% down)
+  const movingRandom = Math.random() * 100;
+  const isMoving = movingRandom < 6;
+  const moveDirection = movingRandom < 3 ? 'up' : 'down';
+  
+  // Update platform properties
+  platform.id = newId;
+  platform.y = newY;
+  platform.width = willHaveEnemy ? GAME_CONSTANTS.PLATFORM_WITH_ENEMY_WIDTH : GAME_CONSTANTS.STANDARD_PLATFORM_WIDTH;
+  platform.x = Math.random() * (canvas.width - platform.width);
+  platform.absoluteY = absoluteY;
+  platform.scored = false;
+  platform.standingTime = 0;
+  platform.isFalling = false;
+  platform.fallSpeed = 0;
+  platform.color = '#593A0A';
+  platform.scoreValue = newScore;
+  platform.isMilestone = isMilestone;
+  platform.milestoneValue = milestoneValue;
+  platform.isMoving = isMoving;
+  platform.moveDirection = isMoving ? moveDirection : null;
+  platform.originalY = newY;
+  platform.displacement = 0;
+  
+  // Add enemy if needed
+  if (willHaveEnemy) {
+    platform.enemy = createEnemy(platform);
+  } else {
+    platform.enemy = null;
+  }
+  
+  return platform;
+}
+
+// Draw score box for milestone platforms
+function drawScoreBox(x, y, scoreValue) {
+  // Make sure we have a valid score value to display
+  if (!scoreValue || scoreValue <= 0) {
+    return; // Skip drawing if no valid value
+  }
+  
+  ctx.fillStyle = '#8B4513';
+  ctx.fillRect(x, y, 30, 20);
+  ctx.strokeStyle = '#593A0A';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, 30, 20);
+  ctx.beginPath();
+  ctx.moveTo(x, y + 7);
+  ctx.lineTo(x + 30, y + 7);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x, y + 14);
+  ctx.lineTo(x + 30, y + 14);
+  ctx.stroke();
+  ctx.fillStyle = 'white';
+  ctx.font = "12px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(scoreValue, x + 15, y + 14);
+  ctx.textAlign = "start";
 }
 
 // Get platform color based on state
@@ -258,7 +354,7 @@ function updatePlatforms() {
     }
     
     // Draw milestone score box
-    if (platform.isMilestone) {
+    if (platform.isMilestone && platform.milestoneValue > 0) {
       drawScoreBox(platform.x + platform.width / 2 - 15, platform.y - 15, platform.milestoneValue);
     }
     
@@ -270,28 +366,6 @@ function updatePlatforms() {
       ctx.fillRect(platform.x, platform.y - 5, countdownWidth, 3);
     }
   });
-}
-
-// Draw score box for milestone platforms
-function drawScoreBox(x, y, scoreValue) {
-  ctx.fillStyle = '#8B4513';
-  ctx.fillRect(x, y, 30, 20);
-  ctx.strokeStyle = '#593A0A';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x, y, 30, 20);
-  ctx.beginPath();
-  ctx.moveTo(x, y + 7);
-  ctx.lineTo(x + 30, y + 7);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(x, y + 14);
-  ctx.lineTo(x + 30, y + 14);
-  ctx.stroke();
-  ctx.fillStyle = 'white';
-  ctx.font = "12px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText(scoreValue, x + 15, y + 14);
-  ctx.textAlign = "start";
 }
 
 // Check platform collisions with player

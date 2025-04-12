@@ -20,8 +20,17 @@ function updateScore(platformId) {
     const scoreIncrement = levelsJumped * 10;
     const newScore = score + scoreIncrement;
     
-    if (newScore % 100 === 0 && platform) {
+    // Check if this platform or the next would be a 100-point milestone
+    if (newScore % 100 === 0) {
       platform.isMilestone = true;
+      platform.milestoneValue = newScore; // Set to actual score value
+    } else if ((newScore + 10) % 100 === 0 && platform.id + 1 <= platforms.length) {
+      // Find the next platform and mark it as a milestone
+      const nextPlatform = platforms.find(p => p.id === platform.id + 1);
+      if (nextPlatform) {
+        nextPlatform.isMilestone = true;
+        nextPlatform.milestoneValue = newScore + 10;
+      }
     }
     
     score = newScore;
