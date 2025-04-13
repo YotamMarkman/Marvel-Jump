@@ -1,0 +1,32 @@
+/* Audio control button styles */
+#muteButton {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 999;
+    font-size: 20px;
+    transition: all 0.2s ease;
+  }
+  
+  #muteButton:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+    transform: scale(1.1);
+  }
+  
+  /* Font Awesome icon fallback if not available */
+  .fa-volume-up::before {
+    content: "🔊";
+  }
+  
+  .fa-volume-mute::before {
+    content: "🔇";
+  }

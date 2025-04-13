@@ -17,6 +17,11 @@ function setupInputHandlers() {
       shootUp();
     }
     
+    // Mute/unmute on "M" (keycode 77)
+    if (e.keyCode === 77) {
+      toggleMute();
+    }
+    
     // Character selection with keyboard
     if (document.getElementById('characterSelect').style.display !== 'none') {
       if (e.key.toLowerCase() === 'i') {
@@ -47,14 +52,4 @@ function setupInputHandlers() {
   document.getElementById('playAgainButton').addEventListener("click", function() {
     location.reload();
   });
-}
-
-// Handle player movement based on input
-function handlePlayerMovement() {
-  if (keys[39]) { // Right arrow
-    if (player.velX < player.speed) player.velX++;
-  }
-  if (keys[37]) { // Left arrow
-    if (player.velX > -player.speed) player.velX--;
-  }
 }

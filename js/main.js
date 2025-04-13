@@ -9,6 +9,9 @@ function init() {
   // Initialize platforms
   initPlatforms();
   
+  // Initialize audio controls
+  initAudioControls();
+  
   // Set up input handlers
   setupInputHandlers();
   
@@ -19,6 +22,11 @@ function init() {
   openingMusic.play().catch(function(error) {
     console.log("Audio play failed:", error);
   });
+  
+  // Apply mute state if needed
+  if (getMuteState()) {
+    updateAllAudioElements();
+  }
 }
 
 // Load the game when the window loads

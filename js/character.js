@@ -26,6 +26,16 @@ function initCharacters() {
   ironManMusic = document.getElementById('ironManMusic');
   spiderManMusic = document.getElementById('spiderManMusic');
   
+  // Apply initial mute state to audio elements
+  const savedMuteState = localStorage.getItem('isMuted');
+  if (savedMuteState === 'true') {
+    [openingMusic, ironManMusic, spiderManMusic].forEach(audio => {
+      if (audio) {
+        audio.muted = true;
+      }
+    });
+  }
+  
   // Add click listeners to character options
   document.querySelectorAll('.character-option').forEach(option => {
     option.addEventListener('click', () => {
@@ -50,6 +60,11 @@ function selectCharacter(character) {
   } else if (character === 'spiderman') {
     spiderManMusic.play().catch(error => console.log("Audio play failed:", error));
     currentGameMusic = spiderManMusic;
+  }
+  
+  // Apply mute state if needed
+  if (getMuteState() && currentGameMusic) {
+    currentGameMusic.muted = true;
   }
 
   // Apply character settings
