@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Platformer Game with Marvel Heroes</title>
+  <title>Marvel Jump</title>
   <style>
     /* General body and container styles */
     body, html {
@@ -250,6 +250,151 @@
     #muteButton.muted::before {
       content: '🔇';
     }
+
+    /* Space Stone powerup styles */
+    .consumable {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background-size: contain;
+      background-repeat: no-repeat;
+      z-index: 20; /* Increased z-index to appear above platforms */
+      pointer-events: none; /* Allow clicks to pass through to platforms */
+    }
+
+    .space-stone {
+      background-image: url('space_stone.png');
+      animation: float 2s ease-in-out infinite;
+      /* Add a glowing effect */
+      box-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+      /* Ensure the stone is visible */
+      opacity: 1;
+      /* Add a border to make it more visible */
+      border: 2px solid #00ffff;
+      border-radius: 50%;
+    }
+
+    .effect-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+      font-weight: bold;
+      color: #00ffff;
+      text-shadow: 0 0 10px #00ffff;
+      animation: fadeInOut 1s ease-in-out;
+      z-index: 10;
+    }
+
+    .effect-countdown {
+      position: absolute;
+      top: 60%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 36px;
+      font-weight: bold;
+      color: #00ffff;
+      text-shadow: 0 0 10px #00ffff;
+      z-index: 10;
+    }
+
+    .explosion-particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background-color: #00ffff;
+      border-radius: 50%;
+      animation: explode 1s ease-out forwards;
+    }
+
+    @keyframes float {
+      0%, 100% { 
+        transform: translateY(0) scale(1);
+      }
+      50% { 
+        transform: translateY(-10px) scale(1.1);
+      }
+    }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; }
+      20% { opacity: 1; }
+      80% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    @keyframes explode {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(20);
+        opacity: 0;
+      }
+    }
+
+    /* Visual indicator for invincibility effect */
+    .effect-text {
+      position: absolute;
+      top: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #00bfff;
+      font-size: 28px;
+      font-weight: bold;
+      text-shadow: 0 0 10px rgba(0, 191, 255, 0.8), 0 0 20px rgba(0, 191, 255, 0.6);
+      z-index: 100;
+      opacity: 1;
+      transition: opacity 0.5s ease-out;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .effect-countdown {
+      position: absolute;
+      top: 130px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #00bfff;
+      font-size: 22px;
+      text-shadow: 0 0 5px rgba(0, 191, 255, 0.8);
+      z-index: 100;
+    }
+
+    /* Floating animation for power-ups */
+    @keyframes pulse {
+      0% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.1); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
+
+    /* Blue fire effect */
+    @keyframes flicker {
+      0% { height: 20px; opacity: 0.7; }
+      100% { height: 30px; opacity: 0.9; }
+    }
+
+    .flame {
+      position: absolute;
+      bottom: 0;
+      width: 10px;
+      height: 20px;
+      background: linear-gradient(to top, transparent, #00f, #0ff);
+      border-radius: 50% 50% 0 0;
+      filter: blur(2px);
+      opacity: 0.7;
+      animation-duration: 0.5s;
+      animation-name: flicker;
+      animation-iteration-count: infinite;
+      animation-direction: alternate;
+    }
+
+    /* Add CSS for invincibility effect */
+    @keyframes invincible-flash {
+      from { opacity: 1; filter: brightness(1) hue-rotate(0deg); }
+      to { opacity: 0.8; filter: brightness(1.5) hue-rotate(45deg); }
+    }
   </style>
 </head>
 <body>
@@ -272,6 +417,10 @@
     </audio>
     <audio id="webSound">
       <source src="web_sound.mp3" type="audio/mp3">
+    </audio>
+    <!-- Powerup sound -->
+    <audio id="collectSound">
+      <source src="powerup_collect.mp3" type="audio/mp3">
     </audio>
     <h1>Choose Your Character</h1>
     <div class="character-options">
@@ -704,12 +853,10 @@
       const milestoneValue = Math.floor(i / 10) * 100 + 100;
       let newY;
       let attempts = 0;
-      const maxAttempts = 100; // Increased from 50 for better chance of finding valid position
+      const maxAttempts = 100;
       
-      // Position platforms with greater vertical distance
       do {
-        // Increase vertical spacing between platforms
-        const basePosition = canvas.height - (180 * i) - 50; // Increased multiplier from 100 to 180
+        const basePosition = canvas.height - (180 * i) - 50;
         newY = basePosition + (Math.random() * 40 - 20);
         attempts++;
         if (attempts >= maxAttempts) {
@@ -718,19 +865,22 @@
         }
       } while (!isValidPlatformPosition(newY, platforms));
       
-      // Decide if this platform will have an enemy
+      // Decide if this platform will have an enemy (keep original probability)
       const willHaveEnemy = Math.random() < getEnemyProbability();
       
-      // Decide if this platform will move (6% chance - 3% up, 3% down)
+      // Only consider Space Stone if no enemy (10% chance for testing)
+      const willHaveSpaceStone = !willHaveEnemy && Math.random() < 0.1;
+      
+      // Decide if this platform will move
       const movingRandom = Math.random() * 100;
-      const isMoving = movingRandom < 6; // 6% chance
-      const moveDirection = movingRandom < 3 ? 'up' : 'down'; // 3% up, 3% down
+      const isMoving = movingRandom < 6;
+      const moveDirection = movingRandom < 3 ? 'up' : 'down';
       
       let platform = {
         id: i,
         x: Math.random() * (canvas.width - (willHaveEnemy ? platformWithEnemyWidth : standardPlatformWidth)),
         y: newY,
-        width: willHaveEnemy ? platformWithEnemyWidth : standardPlatformWidth, // Wider platform if it has an enemy
+        width: willHaveEnemy ? platformWithEnemyWidth : standardPlatformWidth,
         height: 10,
         absoluteY: newY,
         scored: false,
@@ -743,29 +893,45 @@
         isMilestone: (i + 1) % 10 === 0,
         milestoneValue: milestoneValue,
         enemy: null,
-        // Moving platform properties
         isMoving: isMoving,
         moveDirection: isMoving ? moveDirection : null,
         originalY: newY,
-        displacement: 0
+        displacement: 0,
+        spaceStone: null
       };
       
+      // Create enemy if platform should have one
       if (willHaveEnemy) {
         platform.enemy = createEnemy(platform);
+      }
+      
+      // Create Space Stone if platform should have one (and has no enemy)
+      if (willHaveSpaceStone) {
+        const stone = document.createElement('div');
+        stone.className = 'consumable space-stone';
+        stone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+        stone.style.top = (platform.y - 30) + 'px';
+        gameContainer.appendChild(stone);
+        platform.spaceStone = stone;
       }
       
       platforms.push(platform);
     }
 
     function recyclePlatform(platform) {
+      // Clean up existing elements
       if (platform.enemy && platform.enemy.element) {
         platform.enemy.element.remove();
       }
+      if (platform.spaceStone) {
+        platform.spaceStone.remove();
+      }
+
       let newY;
       let attempts = 0;
-      const maxAttempts = 100; // Increased from 50
+      const maxAttempts = 100;
       do {
-        newY = -150 - (Math.random() * 100); // Increased negative position for more spacing
+        newY = -150 - (Math.random() * 100);
         attempts++;
         if (attempts >= maxAttempts) {
           newY = -150;
@@ -776,10 +942,13 @@
       // Decide if recycled platform will have an enemy
       const willHaveEnemy = Math.random() < getEnemyProbability();
       
-      // Decide if this recycled platform will move (6% chance - 3% up, 3% down)
+      // Only consider Space Stone if no enemy (10% chance for testing)
+      const willHaveSpaceStone = !willHaveEnemy && Math.random() < 0.1;
+      
+      // Decide if this recycled platform will move
       const movingRandom = Math.random() * 100;
-      const isMoving = movingRandom < 6; // 6% chance
-      const moveDirection = movingRandom < 3 ? 'up' : 'down'; // 3% up, 3% down
+      const isMoving = movingRandom < 6;
+      const moveDirection = movingRandom < 3 ? 'up' : 'down';
       
       platform.y = newY;
       platform.width = willHaveEnemy ? platformWithEnemyWidth : standardPlatformWidth;
@@ -802,10 +971,23 @@
       platform.originalY = newY;
       platform.displacement = 0;
       
+      // Create new enemy if platform should have one
       if (willHaveEnemy) {
         platform.enemy = createEnemy(platform);
       } else {
         platform.enemy = null;
+      }
+
+      // Create new Space Stone if platform should have one (and has no enemy)
+      if (willHaveSpaceStone) {
+        const stone = document.createElement('div');
+        stone.className = 'consumable space-stone';
+        stone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+        stone.style.top = (platform.y - 30) + 'px';
+        gameContainer.appendChild(stone);
+        platform.spaceStone = stone;
+      } else {
+        platform.spaceStone = null;
       }
     }
 
@@ -833,6 +1015,13 @@
      * Game Loop
      ***********************/
     let lastTime = 0;
+    let isInvincible = false;
+    let invincibilityTimer = null;
+    let powerupActive = false;
+    let powerupDuration = 7000; // Changed to 7 seconds
+    let powerupSpawnInterval = 20000; // 20 seconds
+    let lastPowerupSpawn = 0;
+
     function updateGame(timestamp) {
       if (!gameOver) {
         if (keys[39]) {
@@ -909,7 +1098,15 @@
             if (platform.enemy) {
               platform.enemy.y += scrollAmount;
             }
+            if (platform.spaceStone) {
+              platform.spaceStone.style.top = (platform.y - 30) + 'px';
+            }
             if (platform.y > canvas.height) {
+              // Remove Space Stone before recycling platform
+              if (platform.spaceStone) {
+                platform.spaceStone.remove();
+                platform.spaceStone = null;
+              }
               recyclePlatform(platform);
             }
           });
@@ -923,10 +1120,11 @@
             if (platform.enemy) {
               platform.enemy.y += platform.fallSpeed;
             }
+            if (platform.spaceStone) {
+              platform.spaceStone.style.top = (platform.y - 30) + 'px';
+            }
           }
-        });
 
-        platforms.forEach(platform => {
           if (platform.enemy) {
             platform.enemy.y = platform.y - enemyHeight;
             if (platform.enemy.type === 'Type2') {
@@ -942,6 +1140,12 @@
               platform.enemy.element.style.left = platform.enemy.x + 'px';
               platform.enemy.element.style.top = platform.enemy.y + 'px';
             }
+          }
+
+          // Update Space Stone position
+          if (platform.spaceStone) {
+            platform.spaceStone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+            platform.spaceStone.style.top = (platform.y - 30) + 'px';
           }
         });
 
@@ -999,10 +1203,30 @@
           player.jumping = true;
         }
 
+        // Check for enemy collisions only if not invincible
         platforms.forEach(platform => {
-          if (platform.enemy && isColliding(player, platform.enemy)) {
+          if (platform.enemy && !isInvincible && isColliding(player, platform.enemy)) {
             showGameOverOverlay();
             gameOver = true;
+          }
+        });
+
+        // Check for Space Stone collection
+        platforms.forEach(platform => {
+          if (platform.spaceStone && !platform.isFalling) {
+            const stone = platform.spaceStone;
+            const stoneRect = stone.getBoundingClientRect();
+            const playerRect = playerEl.getBoundingClientRect();
+            
+            if (
+              playerRect.right > stoneRect.left &&
+              playerRect.left < stoneRect.right &&
+              playerRect.bottom > stoneRect.top &&
+              playerRect.top < stoneRect.bottom
+            ) {
+              collectPowerup(stone);
+              platform.spaceStone = null;
+            }
           }
         });
       }
@@ -1110,6 +1334,23 @@
       highScoreDisplay.textContent = "High Score: " + highScore;
     };
 
+    // Preload Space Stone image
+    const spaceStoneImg = new Image();
+    spaceStoneImg.src = "space_stone.png";
+    spaceStoneImg.onload = function() {
+      console.log("Space Stone image loaded successfully");
+    };
+    spaceStoneImg.onerror = function() {
+      console.error("Space Stone image failed to load");
+      // Fallback styling if image fails to load
+      const spaceStoneElements = document.querySelectorAll('.space-stone');
+      spaceStoneElements.forEach(element => {
+        element.style.background = 'radial-gradient(circle, #00ffff 0%, #0088ff 50%, #0000ff 100%)';
+        element.style.borderRadius = '50%';
+        element.style.boxShadow = '0 0 10px #00ffff, 0 0 20px #00ffff';
+      });
+    };
+
     function startGame() {
       highScore = parseInt(localStorage.getItem("highScore") || "0");
       highScoreDisplay.textContent = "High Score: " + highScore;
@@ -1144,6 +1385,121 @@
         toggleMute();
       }
     });
+
+    function collectPowerup(stone) {
+        if (!powerupActive) {
+            powerupActive = true;
+            isInvincible = true;
+            collectSound.currentTime = 0;
+            collectSound.play().catch(e => console.log('Audio play failed:', e));
+            
+            // Create explosion effect
+            createExplosion(stone);
+            
+            // Show effect text
+            const effectText = document.createElement('div');
+            effectText.className = 'effect-text';
+            effectText.textContent = 'INVINCIBLE!';
+            gameContainer.appendChild(effectText);
+            
+            // Show countdown
+            const countdown = document.createElement('div');
+            countdown.className = 'effect-countdown';
+            gameContainer.appendChild(countdown);
+            
+            let timeLeft = powerupDuration / 1000;
+            countdown.textContent = timeLeft;
+            
+            const countdownInterval = setInterval(() => {
+                timeLeft--;
+                if (timeLeft >= 0) {
+                    countdown.textContent = timeLeft;
+                }
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    countdown.remove();
+                    effectText.remove();
+                }
+            }, 1000);
+            
+            // Remove stone and reset powerup after duration
+            stone.remove();
+
+            // Clear any existing timer
+            if (invincibilityTimer) {
+                clearTimeout(invincibilityTimer);
+            }
+
+            // Set new timer
+            invincibilityTimer = setTimeout(() => {
+                powerupActive = false;
+                isInvincible = false;
+                // Add a flash effect when invincibility ends
+                const flashEffect = document.createElement('div');
+                flashEffect.className = 'effect-text';
+                flashEffect.textContent = 'INVINCIBILITY ENDED';
+                flashEffect.style.color = '#ff4444';
+                gameContainer.appendChild(flashEffect);
+                setTimeout(() => flashEffect.remove(), 1000);
+            }, powerupDuration);
+
+            // Add visual effect to player during invincibility
+            playerEl.style.animation = 'invincible-flash 0.5s infinite alternate';
+        }
+    }
+
+    function createExplosion(stone) {
+        const particles = 20;
+        for (let i = 0; i < particles; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'explosion-particle';
+            particle.style.left = stone.offsetLeft + 15 + 'px';
+            particle.style.top = stone.offsetTop + 15 + 'px';
+            particle.style.transform = `rotate(${Math.random() * 360}deg)`;
+            gameContainer.appendChild(particle);
+            
+            setTimeout(() => {
+                particle.remove();
+            }, 1000);
+        }
+    }
+
+    function updatePowerups() {
+        const now = Date.now();
+        if (now - lastPowerupSpawn > powerupSpawnInterval) {
+            const stone = createSpaceStone();
+            lastPowerupSpawn = now;
+            
+            const fallInterval = setInterval(() => {
+                const currentTop = parseInt(stone.style.top);
+                stone.style.top = (currentTop + 2) + 'px';
+                
+                // Check collision with player
+                if (checkCollision(stone, player)) {
+                    clearInterval(fallInterval);
+                    collectPowerup(stone);
+                }
+                
+                // Remove if out of bounds
+                if (currentTop > gameContainer.offsetHeight) {
+                    clearInterval(fallInterval);
+                    stone.remove();
+                }
+            }, 16);
+        }
+    }
+
+    // Modify the game loop to include powerup updates
+    function gameLoop() {
+        if (!gameOver) {
+            updatePlayer();
+            updatePlatforms();
+            updateEnemies();
+            updatePowerups();
+            updateProjectiles();
+            requestAnimationFrame(gameLoop);
+        }
+    }
   </script>
-</body>
+  </body>
 </html>

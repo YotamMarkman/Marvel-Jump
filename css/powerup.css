@@ -1,0 +1,36 @@
+/* Power-up styles */
+.consumable {
+    position: absolute;
+    z-index: 5;
+    animation: float 2s ease-in-out infinite alternate;
+  }
+  
+  .space-stone {
+    width: 30px;
+    height: 30px;
+    background: url('../space_stone.png') no-repeat center center / contain;
+    filter: drop-shadow(0 0 5px rgba(0, 191, 255, 0.8));
+  }
+  
+  /* Visual indicator for invincibility effect */
+  .effect-text {
+    animation: pulse 2s ease-in-out infinite;
+  }
+  
+  /* Explosion particles for enemy destruction */
+  .explosion-particle {
+    will-change: transform, opacity;
+  }
+  
+  /* Floating animation for power-ups */
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    100% { transform: translateY(-10px); }
+  }
+  
+  /* Pulsing animation for effect text */
+  @keyframes pulse {
+    0% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(1.1); }
+    100% { transform: translateX(-50%) scale(1); }
+  }

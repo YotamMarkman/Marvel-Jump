@@ -23,6 +23,7 @@ function gameLoop() {
     handleScrolling();
     updatePlatforms();
     updateEnemies();
+    updateConsumables(); // Add this line to update consumables
     checkPlatformCollisions();
     
     // Draw score

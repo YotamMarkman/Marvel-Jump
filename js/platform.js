@@ -29,7 +29,8 @@ function initPlatforms() {
     originalY: canvas.height - 10,
     displacement: 0,
     isMilestone: false,
-    milestoneValue: 0
+    milestoneValue: 0,
+    consumable: null
   };
   
   platforms.push(firstPlatform);
@@ -124,6 +125,7 @@ function createPlatformAtHeight(id, lastY) {
     isMilestone: isMilestone,
     milestoneValue: milestoneValue,
     enemy: null,
+    consumable: null, // Initialize consumable property
     // Moving platform properties
     isMoving: isMoving,
     moveDirection: isMoving ? moveDirection : null,
@@ -134,6 +136,9 @@ function createPlatformAtHeight(id, lastY) {
   // Add enemy if needed
   if (willHaveEnemy) {
     platform.enemy = createEnemy(platform);
+  } else {
+    // Consider adding a consumable if there's no enemy
+    addConsumableToPlatform(platform);
   }
   
   return platform;
@@ -144,6 +149,11 @@ function recyclePlatform(platform) {
   // Remove old enemy
   if (platform.enemy && platform.enemy.element) {
     platform.enemy.element.remove();
+  }
+  
+  // Remove old consumable
+  if (platform.consumable && platform.consumable.element) {
+    platform.consumable.element.remove();
   }
   
   // Find highest platform ID
@@ -206,12 +216,15 @@ function recyclePlatform(platform) {
   platform.moveDirection = isMoving ? moveDirection : null;
   platform.originalY = newY;
   platform.displacement = 0;
+  platform.consumable = null;
   
   // Add enemy if needed
   if (willHaveEnemy) {
     platform.enemy = createEnemy(platform);
   } else {
     platform.enemy = null;
+    // Consider adding a consumable if there's no enemy
+    addConsumableToPlatform(platform);
   }
   
   return platform;
@@ -299,6 +312,11 @@ function updatePlatforms() {
       if (platform.enemy) {
         platform.enemy.y = platform.y - GAME_CONSTANTS.ENEMY_HEIGHT;
       }
+      
+      // Update consumable position if present
+      if (platform.consumable) {
+        platform.consumable.y = platform.y - platform.consumable.height - 5;
+      }
     }
     
     // Update falling platforms
@@ -309,6 +327,10 @@ function updatePlatforms() {
       
       if (platform.enemy) {
         platform.enemy.y += platform.fallSpeed;
+      }
+      
+      if (platform.consumable) {
+        platform.consumable.y += platform.fallSpeed;
       }
     }
   });
@@ -325,6 +347,13 @@ function updatePlatforms() {
     // Add highlight for platforms with enemies
     if (platform.enemy) {
       ctx.strokeStyle = 'orange';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
+    }
+    
+    // Add highlight for platforms with consumables
+    if (platform.consumable) {
+      ctx.strokeStyle = '#00bfff';
       ctx.lineWidth = 2;
       ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
     }
@@ -366,7 +395,7 @@ function updatePlatforms() {
       ctx.fillRect(platform.x, platform.y - 5, countdownWidth, 3);
     }
   });
-}
+} // This closing brace was missing for updatePlatforms function
 
 // Check platform collisions with player
 function checkPlatformCollisions() {

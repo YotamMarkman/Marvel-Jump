@@ -8,7 +8,7 @@ const CONSUMABLE_TYPES = {
     width: 30,
     height: 30,
     effectDuration: 7000, // milliseconds
-    spawnProbability: 0.01 // 1% chance per platform without an enemy
+    spawnProbability: 0.05 // Increased from 0.01 to 0.05 (5% chance per platform without an enemy)
   }
   // Add other stones here later
 };
@@ -64,6 +64,28 @@ function updateConsumables() {
   });
 }
 
+// Check collision between player and consumable
+function isCollidingWithConsumable(player, consumable) {
+  if (!consumable) return false;
+  
+  // Get player collision box
+  const playerBox = getPlayerCollisionBox();
+  
+  // Calculate center points
+  const playerCenterX = playerBox.x + (playerBox.width / 2);
+  const playerCenterY = playerBox.y + (playerBox.height / 2);
+  const consumableCenterX = consumable.x + (consumable.width / 2);
+  const consumableCenterY = consumable.y + (consumable.height / 2);
+  
+  // Define collision radius for consumable
+  const collisionWidth = 25;
+  const collisionHeight = 30;
+  
+  // Check if centers are within the collision box
+  return Math.abs(playerCenterX - consumableCenterX) < collisionWidth &&
+         Math.abs(playerCenterY - consumableCenterY) < collisionHeight;
+}
+
 // Collect and apply consumable effect
 function collectConsumable(consumable) {
   if (consumable.type === CONSUMABLE_TYPES.SPACE_STONE.name) {
@@ -74,8 +96,66 @@ function collectConsumable(consumable) {
       collectSound.currentTime = 0;
       collectSound.play().catch(error => console.log("Sound play failed:", error));
     }
+    
+    // Display effect text
+    showEffectText("INVINCIBILITY!");
   }
   // Add other stone effects here
+}
+
+// Display effect text notification
+function showEffectText(text) {
+  const effectText = document.createElement('div');
+  effectText.className = 'effect-text';
+  effectText.textContent = text;
+  effectText.style.position = 'absolute';
+  effectText.style.top = '100px';
+  effectText.style.left = '50%';
+  effectText.style.transform = 'translateX(-50%)';
+  effectText.style.color = '#00bfff';
+  effectText.style.fontSize = '28px';
+  effectText.style.fontWeight = 'bold';
+  effectText.style.textShadow = '0 0 10px rgba(0, 191, 255, 0.8), 0 0 20px rgba(0, 191, 255, 0.6)';
+  effectText.style.zIndex = '100';
+  effectText.style.opacity = '1';
+  effectText.style.transition = 'opacity 0.5s ease-out';
+  
+  gameContainer.appendChild(effectText);
+  
+  // Create countdown display
+  const countdownEl = document.createElement('div');
+  countdownEl.className = 'effect-countdown';
+  countdownEl.style.position = 'absolute';
+  countdownEl.style.top = '130px';
+  countdownEl.style.left = '50%';
+  countdownEl.style.transform = 'translateX(-50%)';
+  countdownEl.style.color = '#00bfff';
+  countdownEl.style.fontSize = '22px';
+  countdownEl.style.textShadow = '0 0 5px rgba(0, 191, 255, 0.8)';
+  countdownEl.style.zIndex = '100';
+  gameContainer.appendChild(countdownEl);
+  
+  // Update countdown timer
+  let secondsLeft = Math.ceil(CONSUMABLE_TYPES.SPACE_STONE.effectDuration / 1000);
+  countdownEl.textContent = secondsLeft + 's';
+  
+  const countdownInterval = setInterval(() => {
+    secondsLeft--;
+    if (secondsLeft <= 0) {
+      clearInterval(countdownInterval);
+      countdownEl.remove();
+    } else {
+      countdownEl.textContent = secondsLeft + 's';
+    }
+  }, 1000);
+  
+  // Fade out and remove after delay
+  setTimeout(() => {
+    effectText.style.opacity = '0';
+    setTimeout(() => {
+      effectText.remove();
+    }, 500);
+  }, 2000);
 }
 
 // Space Stone effect - invincibility with blue fire
