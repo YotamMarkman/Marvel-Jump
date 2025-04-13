@@ -218,6 +218,38 @@
       font-size: 18px;
       margin: 5px 0;
     }
+    /* Mute button styles */
+    #muteButton {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid white;
+      border-radius: 50%;
+      cursor: pointer;
+      z-index: 10;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.3s ease;
+    }
+
+    #muteButton:hover {
+      transform: scale(1.1);
+      background: rgba(0, 0, 0, 0.7);
+    }
+
+    #muteButton::before {
+      content: '🔊';
+      font-size: 20px;
+      color: white;
+    }
+
+    #muteButton.muted::before {
+      content: '🔇';
+    }
   </style>
 </head>
 <body>
@@ -256,6 +288,7 @@
     <canvas id="gameCanvas" width="400" height="600"></canvas>
     <!-- This is the player character element -->
     <div id="playerCharacter" class="player-base"></div>
+    <button id="muteButton" title="Press M to toggle mute"></button>
   </div>
 
   <div id="gameOverOverlay">
@@ -1062,6 +1095,34 @@
       // Start the game loop
       requestAnimationFrame(updateGame);
     }
+
+    /***********************
+     * Audio Control
+     ***********************/
+    let isMuted = false;
+    const muteButton = document.getElementById('muteButton');
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      muteButton.classList.toggle('muted');
+      
+      // Mute/unmute all audio elements
+      [openingMusic, ironManMusic, spiderManMusic].forEach(audio => {
+        if (audio) {
+          audio.muted = isMuted;
+        }
+      });
+    }
+
+    // Add click handler for mute button
+    muteButton.addEventListener('click', toggleMute);
+
+    // Add keyboard shortcut for mute (M key)
+    document.addEventListener('keydown', function(e) {
+      if (e.key.toLowerCase() === 'm') {
+        toggleMute();
+      }
+    });
   </script>
 </body>
 </html>
