@@ -894,7 +894,34 @@
       bullet.style.top = startY + 'px';
       gameContainer.appendChild(bullet);
       
+      // Check for bullet-enemy collisions during animation
+      const checkCollisions = setInterval(() => {
+        const bulletRect = bullet.getBoundingClientRect();
+        
+        platforms.forEach(platform => {
+          if (platform.enemy && platform.enemy.element) {
+            const enemyRect = platform.enemy.element.getBoundingClientRect();
+            
+            // Check if bullet hits enemy
+            if (bulletRect.right > enemyRect.left &&
+                bulletRect.left < enemyRect.right &&
+                bulletRect.bottom > enemyRect.top &&
+                bulletRect.top < enemyRect.bottom) {
+              
+              // Remove the enemy
+              platform.enemy.element.remove();
+              platform.enemy = null;
+              
+              // Remove the bullet
+              clearInterval(checkCollisions);
+              bullet.remove();
+            }
+          }
+        });
+      }, 16);
+      
       bullet.addEventListener('animationend', () => {
+        clearInterval(checkCollisions);
         bullet.remove();
       });
     }
