@@ -395,6 +395,30 @@
       from { opacity: 1; filter: brightness(1) hue-rotate(0deg); }
       to { opacity: 0.8; filter: brightness(1.5) hue-rotate(45deg); }
     }
+
+    /* Time Stone powerup styles */
+    .time-stone {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background-image: url('Time_stone.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      z-index: 20;
+      pointer-events: none;
+      animation: float 2s ease-in-out infinite;
+      box-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+      opacity: 1;
+      border: 2px solid #00ff00;
+      border-radius: 50%;
+    }
+
+    /* Super jump animation */
+    @keyframes super-jump {
+      0% { transform: scale(1); filter: hue-rotate(0deg); }
+      50% { transform: scale(1.2); filter: hue-rotate(180deg); }
+      100% { transform: scale(1); filter: hue-rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -926,6 +950,9 @@
       if (platform.spaceStone) {
         platform.spaceStone.remove();
       }
+      if (platform.timeStone) {
+        platform.timeStone.remove();
+      }
 
       let newY;
       let attempts = 0;
@@ -942,8 +969,9 @@
       // Decide if recycled platform will have an enemy
       const willHaveEnemy = Math.random() < getEnemyProbability();
       
-      // Only consider Space Stone if no enemy (10% chance for testing)
+      // Only consider powerups if no enemy
       const willHaveSpaceStone = !willHaveEnemy && Math.random() < 0.1;
+      const willHaveTimeStone = !willHaveEnemy && !willHaveSpaceStone && Math.random() < 0.04; // 4% chance
       
       // Decide if this recycled platform will move
       const movingRandom = Math.random() * 100;
@@ -989,6 +1017,13 @@
       } else {
         platform.spaceStone = null;
       }
+
+      // Create new Time Stone if platform should have one
+      if (willHaveTimeStone) {
+        platform.timeStone = createTimeStone(platform);
+      } else {
+        platform.timeStone = null;
+      }
     }
 
     // Precise center-to-center collision detection
@@ -1021,6 +1056,9 @@
     let powerupDuration = 7000; // Changed to 7 seconds
     let powerupSpawnInterval = 20000; // 20 seconds
     let lastPowerupSpawn = 0;
+
+    let hasTimeStone = false;
+    const superJumpVelocity = -30; // Much stronger than normal jump
 
     function updateGame(timestamp) {
       if (!gameOver) {
@@ -1226,6 +1264,27 @@
             ) {
               collectPowerup(stone);
               platform.spaceStone = null;
+            }
+          }
+        });
+
+        // Update Time Stone positions and check for collection
+        platforms.forEach(platform => {
+          if (platform.timeStone && !platform.isFalling) {
+            // Update Time Stone position
+            platform.timeStone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+            platform.timeStone.style.top = (platform.y - 30) + 'px';
+
+            // Check for collection
+            if (
+              player.x < platform.x + platform.width &&
+              player.x + player.width > platform.x &&
+              player.y + player.height >= platform.y - 30 &&
+              player.y <= platform.y
+            ) {
+              activateTimeStone();
+              platform.timeStone.remove();
+              platform.timeStone = null;
             }
           }
         });
@@ -1499,6 +1558,68 @@
             updateProjectiles();
             requestAnimationFrame(gameLoop);
         }
+    }
+
+    function createTimeStone(platform) {
+      const stone = document.createElement('div');
+      stone.className = 'time-stone';
+      stone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+      stone.style.top = (platform.y - 30) + 'px';
+      gameContainer.appendChild(stone);
+      return stone;
+    }
+
+    function activateTimeStone() {
+      // Create visual effect
+      const effectText = document.createElement('div');
+      effectText.className = 'effect-text';
+      effectText.textContent = 'SUPER JUMP!';
+      effectText.style.color = '#00ff00';
+      gameContainer.appendChild(effectText);
+      
+      // Apply super jump
+      player.velY = superJumpVelocity;
+      player.jumping = true;
+      
+      // Add visual effect to player
+      playerEl.style.animation = 'super-jump 1s';
+      
+      // Track initial position for score calculation
+      const initialY = player.y;
+      const initialPlatformIndex = Math.floor(score / 10);
+      
+      // Check for platforms jumped over
+      const checkJumpHeight = setInterval(() => {
+        if (player.velY >= 0) { // We've reached the peak of our jump
+          clearInterval(checkJumpHeight);
+          
+          // Calculate platforms jumped
+          const finalY = player.y;
+          const heightJumped = initialY - finalY;
+          const platformsJumped = Math.floor(heightJumped / 180); // Using platform spacing
+          
+          // Add score for platforms jumped
+          if (platformsJumped > 0) {
+            score += platformsJumped * 10;
+            scoreDisplay.textContent = "Score: " + score;
+            
+            // Show platforms jumped
+            const jumpText = document.createElement('div');
+            jumpText.className = 'effect-text';
+            jumpText.textContent = `+${platformsJumped * 10} POINTS!`;
+            jumpText.style.color = '#00ff00';
+            jumpText.style.top = '150px';
+            gameContainer.appendChild(jumpText);
+            setTimeout(() => jumpText.remove(), 1000);
+          }
+        }
+      }, 100);
+
+      // Remove effect text after 1 second
+      setTimeout(() => {
+        effectText.remove();
+        playerEl.style.animation = '';
+      }, 1000);
     }
   </script>
   </body>
