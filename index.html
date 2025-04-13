@@ -266,6 +266,13 @@
     <audio id="spiderManMusic" loop>
       <source src="spider_man_song.mp3" type="audio/mp3">
     </audio>
+    <!-- New shooting sound elements -->
+    <audio id="blastSound">
+      <source src="blast_sound.mp3" type="audio/mp3">
+    </audio>
+    <audio id="webSound">
+      <source src="web_sound.mp3" type="audio/mp3">
+    </audio>
     <h1>Choose Your Character</h1>
     <div class="character-options">
       <div class="character-option" onclick="selectCharacter('ironman')">
@@ -660,9 +667,23 @@
       location.reload();
     });
 
+    // Add audio elements for shooting sounds
+    const blastSound = document.getElementById('blastSound');
+    const webSound = document.getElementById('webSound');
+
     function shootUp() {
       const bullet = document.createElement('div');
       bullet.classList.add('bullet', 'shootUp');
+      
+      // Play character-specific shooting sound
+      if (selectedCharacter === 'ironman') {
+        blastSound.currentTime = 0; // Reset sound to start
+        blastSound.play().catch(e => console.log("Audio play failed:", e));
+      } else if (selectedCharacter === 'spiderman') {
+        webSound.currentTime = 0; // Reset sound to start
+        webSound.play().catch(e => console.log("Audio play failed:", e));
+      }
+
       const rect = playerEl.getBoundingClientRect();
       const containerRect = gameContainer.getBoundingClientRect();
       const startX = rect.left - containerRect.left + (rect.width / 2) - 3;
@@ -1107,7 +1128,7 @@
       muteButton.classList.toggle('muted');
       
       // Mute/unmute all audio elements
-      [openingMusic, ironManMusic, spiderManMusic].forEach(audio => {
+      [openingMusic, ironManMusic, spiderManMusic, blastSound, webSound].forEach(audio => {
         if (audio) {
           audio.muted = isMuted;
         }
