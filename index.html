@@ -168,18 +168,44 @@
     #playerCharacter.jump {
       animation: jumpPop 0.3s ease-out;
     }
-    /* Bullet style for upward shooting */
+    /* Bullet styles for different characters */
     .bullet {
       position: absolute;
+      z-index: 6;
       width: 6px;
       height: 12px;
-      background: yellow;
-      z-index: 6;
     }
+
+    .blast {
+      background: yellow;
+      box-shadow: 0 0 10px #ffff00;
+      border-radius: 50%;
+    }
+
+    .web {
+      background: white;
+      box-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+    }
+
+    /* Web strands */
+    .web:before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -2px;
+      width: 8px;
+      height: 8px;
+      background: 
+        linear-gradient(45deg, transparent 45%, white 45%, white 55%, transparent 55%),
+        linear-gradient(-45deg, transparent 45%, white 45%, white 55%, transparent 55%);
+      background-size: 100% 100%;
+    }
+
     @keyframes shootUpAnimation {
       0% { transform: translateY(0); opacity: 1; }
       100% { transform: translateY(-600px); opacity: 0; }
     }
+
     .shootUp {
       animation: shootUpAnimation 1s linear forwards;
     }
@@ -848,12 +874,14 @@
       const bullet = document.createElement('div');
       bullet.classList.add('bullet', 'shootUp');
       
-      // Play character-specific shooting sound
+      // Add character-specific style
       if (selectedCharacter === 'ironman') {
-        blastSound.currentTime = 0; // Reset sound to start
+        bullet.classList.add('blast');
+        blastSound.currentTime = 0;
         blastSound.play().catch(e => console.log("Audio play failed:", e));
       } else if (selectedCharacter === 'spiderman') {
-        webSound.currentTime = 0; // Reset sound to start
+        bullet.classList.add('web');
+        webSound.currentTime = 0;
         webSound.play().catch(e => console.log("Audio play failed:", e));
       }
 
@@ -861,9 +889,11 @@
       const containerRect = gameContainer.getBoundingClientRect();
       const startX = rect.left - containerRect.left + (rect.width / 2) - 3;
       const startY = rect.top - containerRect.top;
+      
       bullet.style.left = startX + 'px';
       bullet.style.top = startY + 'px';
       gameContainer.appendChild(bullet);
+      
       bullet.addEventListener('animationend', () => {
         bullet.remove();
       });
