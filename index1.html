@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marvel Jump</title>
+  
+  <!-- CSS Files -->
+  <link rel="stylesheet" href="main.css">
+  <link rel="stylesheet" href="animations.css">
+  <link rel="stylesheet" href="audio.css">
+  <link rel="stylesheet" href="characters.css">
+  <link rel="stylesheet" href="game-elements.css">
+  <link rel="stylesheet" href="game-over.css">
+  <link rel="stylesheet" href="powerup.css">
+  <link rel="stylesheet" href="selection-screen.css">
+</head>
+<body>
+  <!-- Character Selection Screen -->
+  <div id="characterSelect">
+    <!-- Add audio element for opening screen music -->
+    <audio id="openingMusic" loop>
+      <source src="Opening_screen.mp3" type="audio/mp3">
+    </audio>
+    <!-- Add audio elements for character-specific music -->
+    <audio id="ironManMusic" loop>
+      <source src="iron_man_song.mp3" type="audio/mp3">
+    </audio>
+    <audio id="spiderManMusic" loop>
+      <source src="spider_man_song.mp3" type="audio/mp3">
+    </audio>
+    <!-- New shooting sound elements -->
+    <audio id="blastSound">
+      <source src="blast_sound.mp3" type="audio/mp3">
+    </audio>
+    <audio id="webSound">
+      <source src="web_sound.mp3" type="audio/mp3">
+    </audio>
+    <!-- Powerup sound -->
+    <audio id="collectSound">
+      <source src="powerup_collect.mp3" type="audio/mp3">
+    </audio>
+    <h1>Choose Your Character</h1>
+    <div class="character-options">
+      <div class="character-option" data-character="ironman">
+         <img src="ironman.png" alt="Iron Man" class="character-img">
+        <div class="character-name">Iron Man</div>
+        <div class="character-key">Press 'I' to select</div>
+      </div>
+      <div class="character-option" data-character="spiderman">
+        <img src="spiderman.png" alt="Spider-Man" class="character-img">
+        <div class="character-name">Spider-Man</div>
+        <div class="character-key">Press 'S' to select</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="scoreDisplay">Score: 0</div>
+  <div id="highScoreDisplay">High Score: 0</div>
+
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <!-- This is the player character element -->
+    <div id="playerCharacter" class="player-base"></div>
+  </div>
+
+  <div id="gameOverOverlay">
+    <h1>GAME OVER</h1>
+    <div id="finalScoreDisplay"></div>
+    <button id="playAgainButton">Play Again</button>
+    <h2>Leaderboard</h2>
+    <ol id="leaderboardList"></ol>
+    <p>Press <strong>Q</strong> to Quit, <strong>R</strong> or <strong>Space</strong> to Restart</p>
+  </div>
+
+  <!-- JavaScript Files -->
+  <!-- First load constants and utility files -->
+  <script src="constants.js"></script>
+  
+  <!-- Then load core game elements -->
+  <script src="audio.js"></script>
+  <script src="character.js"></script>
+  <script src="collision.js"></script>
+  <script src="platform.js"></script>
+  <script src="enemy.js"></script>
+  <script src="consumables.js"></script>
+  <script src="score.js"></script>
+  
+  <!-- Then load game mechanics -->
+  <script src="input.js"></script>
+  <script src="gameloop.js"></script>
+  
+  <!-- Finally load main initialization -->
+  <script src="main.js"></script>
+</body>
+</html>

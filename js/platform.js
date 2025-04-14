@@ -58,16 +58,17 @@ function createPlatformAtHeight(id, lastY) {
   const milestoneValue = isMilestone ? platformScore : 0;
   
   // Calculate min and max allowed Y positions
-  const ironManHeight = CHARACTER_SETTINGS['ironman'].height;
-  const spiderManHeight = CHARACTER_SETTINGS['spiderman'].height;
-  const maxCharHeight = Math.max(ironManHeight, spiderManHeight);
+  const maxCharHeight = Math.max(
+    CHARACTER_SETTINGS['ironman'].height,
+    CHARACTER_SETTINGS['spiderman'].height
+  );
   
   // Minimum height difference: character can jump to it (jump height)
   const jumpHeight = Math.abs(GAME_CONSTANTS.BASE_JUMP) * 2; // Approximate jump height
   // Maximum height difference: not too far to jump
-  const maxHeightDiff = jumpHeight * 0.9; // 90% of jump height
-  // Minimum height difference: not too close (at least character height)
-  const minHeightDiff = maxCharHeight + 30;
+  const maxHeightDiff = jumpHeight * 0.8; // Reduced from 0.9 to 0.8 to ensure reachability
+  // Minimum height difference: not too close (at least character height plus buffer)
+  const minHeightDiff = maxCharHeight + 40; // Increased from 30 to 40 for more breathing room
   
   // Calculate a valid Y position range
   const minY = lastY - maxHeightDiff; // Can't be too high (limited by jump height)
@@ -183,12 +184,28 @@ function recyclePlatform(platform) {
   
   // Calculate minimum and maximum height difference
   const jumpHeight = Math.abs(GAME_CONSTANTS.BASE_JUMP) * 2;
-  const maxHeightDiff = jumpHeight * 0.9;
-  const minHeightDiff = maxCharHeight + 30;
+  const maxHeightDiff = jumpHeight * 0.8; // Reduced from 0.9 to 0.8
+  const minHeightDiff = maxCharHeight + 40; // Increased from 30 to 40
   
-  // Calculate new Y position
-  const newY = highestPlatform.y - minHeightDiff - (Math.random() * (maxHeightDiff - minHeightDiff));
-  const absoluteY = highestPlatform.absoluteY - minHeightDiff - (Math.random() * (maxHeightDiff - minHeightDiff));
+  // Calculate new Y position - ensure proper spacing
+  // Use a more precise approach to ensure new platforms are neither too close nor too far
+  let newYMin = highestPlatform.y - maxHeightDiff;
+  let newYMax = highestPlatform.y - minHeightDiff;
+  let newY;
+  
+  if (newYMin < newYMax) {
+    // Normal case: random position within range
+    newY = newYMin + Math.random() * (newYMax - newYMin);
+  } else {
+    // Edge case: use minimum allowed height
+    newY = newYMin;
+  }
+  
+  // Make sure Y is not negative (keep platform visible)
+  newY = Math.max(newY, 50);
+  
+  // Calculate absolute Y value for scoring
+  const absoluteY = highestPlatform.absoluteY - (highestPlatform.y - newY);
   
   // Decide if recycled platform will have an enemy
   const willHaveEnemy = Math.random() < getEnemyProbability();
@@ -395,7 +412,7 @@ function updatePlatforms() {
       ctx.fillRect(platform.x, platform.y - 5, countdownWidth, 3);
     }
   });
-} // This closing brace was missing for updatePlatforms function
+} 
 
 // Check platform collisions with player
 function checkPlatformCollisions() {
@@ -456,4 +473,67 @@ function checkPlatformCollisions() {
       }
     }
   }
+}
+
+// Handle screen scrolling based on player position
+function handleScrolling() {
+  let scrollAmount = 0;
+  
+  if (player.y < canvas.height / 4) {
+    scrollAmount = canvas.height / 4 - player.y;
+    player.y += scrollAmount;
+    
+    platforms.forEach(platform => {
+      platform.y += scrollAmount;
+      
+      if (platform.isMoving) {
+        platform.originalY += scrollAmount;
+      }
+      
+      if (platform.enemy) {
+        platform.enemy.y += scrollAmount;
+      }
+      
+      if (platform.consumable) {
+        platform.consumable.y += scrollAmount;
+      }
+      
+      if (platform.y > canvas.height) {
+        recyclePlatform(platform);
+      }
+    });
+    
+    // Track absolute height for score calculations
+    absoluteHeight += scrollAmount;
+  }
+  
+  return scrollAmount;
+}
+
+// Validate if a platform position is valid relative to existing platforms
+function isValidPlatformPosition(newY, platforms) {
+  // Get character heights for spacing calculations
+  const maxCharHeight = Math.max(
+    CHARACTER_SETTINGS['ironman'].height,
+    CHARACTER_SETTINGS['spiderman'].height
+  );
+  
+  // Define minimum vertical spacing between platforms
+  const minVerticalSpacing = maxCharHeight + 40;
+  
+  // Define maximum vertical spacing based on jump capability
+  const maxVerticalSpacing = Math.abs(GAME_CONSTANTS.BASE_JUMP) * 2 * 0.8;
+  
+  // Check if the new position conflicts with any existing platform
+  for (let i = 0; i < platforms.length; i++) {
+    const yDifference = Math.abs(platforms[i].y - newY);
+    
+    // Too close to an existing platform
+    if (yDifference < minVerticalSpacing && yDifference > 0) {
+      return false;
+    }
+  }
+  
+  // No conflicts found
+  return true;
 }

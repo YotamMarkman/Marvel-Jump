@@ -87,12 +87,6 @@
       margin-bottom: 10px;
       object-fit: contain;
     }
-    /* Make Iron Man image display larger within the container */
-    .character-option:first-child .character-img {
-      object-fit: cover;
-      object-position: center 20%;
-      transform: scale(1.25); /* Increase the image size without changing the container */
-    }
     .character-option:hover .character-img {
       border-color: #fff;
     }
@@ -932,19 +926,33 @@
     for (let i = 0; i < 10; i++) {
       const platformScore = (i + 1) * 10;
       const milestoneValue = Math.floor(i / 10) * 100 + 100;
+      
+      // Find a valid platform position
       let newY;
       let attempts = 0;
-      const maxAttempts = 100;
+      const maxAttempts = 50;
+      
+      // Base position that ensures proper spacing
+      const basePosition = i === 0 ? 
+                           canvas.height - 200 : // First platform
+                           platforms[platforms.length - 1].y - getOptimalVerticalGap();
       
       do {
-        const basePosition = canvas.height - (180 * i) - 50;
-        newY = basePosition + (Math.random() * 40 - 20);
+        // Add some randomness to the exact position
+        newY = basePosition + (Math.random() * 20 - 10);
+        
+        // Increase attempts counter
         attempts++;
+        
+        // If we can't find a valid position after many attempts, just use the base position
         if (attempts >= maxAttempts) {
           newY = basePosition;
           break;
         }
       } while (!isValidPlatformPosition(newY, platforms));
+      
+      // Make sure platforms don't go above the screen
+      newY = Math.max(newY, 50);
       
       // Decide if this platform will have an enemy (keep original probability)
       const willHaveEnemy = Math.random() < getEnemyProbability();
@@ -1011,17 +1019,22 @@
         platform.timeStone.remove();
       }
 
-      let newY;
-      let attempts = 0;
-      const maxAttempts = 100;
-      do {
-        newY = -150 - (Math.random() * 100);
-        attempts++;
-        if (attempts >= maxAttempts) {
-          newY = -150;
-          break;
+      // Find the highest platform (lowest Y value)
+      let highestPlatform = platforms[0];
+      for (let i = 1; i < platforms.length; i++) {
+        if (platforms[i].y < highestPlatform.y) {
+          highestPlatform = platforms[i];
         }
-      } while (!isValidPlatformPosition(newY, platforms));
+      }
+      
+      // Calculate a good vertical gap
+      const verticalGap = getOptimalVerticalGap();
+      
+      // Position the recycled platform above the highest one
+      let newY = highestPlatform.y - verticalGap;
+      
+      // Ensure the platform is visible
+      newY = Math.max(newY, -20);
       
       // Decide if recycled platform will have an enemy
       const willHaveEnemy = Math.random() < getEnemyProbability();
@@ -1035,6 +1048,7 @@
       const isMoving = movingRandom < 6;
       const moveDirection = movingRandom < 3 ? 'up' : 'down';
       
+      // Update platform properties
       platform.y = newY;
       platform.width = willHaveEnemy ? platformWithEnemyWidth : standardPlatformWidth;
       platform.x = Math.random() * (canvas.width - platform.width);
@@ -1044,6 +1058,8 @@
       platform.isFalling = false;
       platform.fallSpeed = 0;
       platform.color = '#593A0A';
+      
+      // Update ID and score values
       let maxId = Math.max(...platforms.map(p => p.id));
       platform.id = maxId + 1;
       platform.scoreValue = (platform.id + 1) * 10;
@@ -1081,6 +1097,8 @@
       } else {
         platform.timeStone = null;
       }
+      
+      return platform;
     }
 
     // Precise center-to-center collision detection
@@ -1101,6 +1119,55 @@
       // Check if centers are within the collision box
       return Math.abs(obj1CenterX - obj2CenterX) < collisionWidth &&
              Math.abs(obj1CenterY - obj2CenterY) < collisionHeight;
+    }
+
+    // Calculate optimal vertical gap between platforms
+    function getOptimalVerticalGap() {
+      // Base the gap on the character's jump capability
+      const jumpHeight = Math.abs(baseJump) * 2; // Approximate jump height
+      
+      // Get the maximum character height
+      const maxCharHeight = Math.max(
+        characterSettings['ironman'].height,
+        characterSettings['spiderman'].height
+      );
+      
+      // Minimum gap should be larger than character height
+      const minGap = maxCharHeight + 40;
+      
+      // Maximum gap should be jumpable
+      const maxGap = jumpHeight * 0.8; // 80% of jump height to ensure reachability
+      
+      // Return a random value between min and max
+      return minGap + Math.random() * (maxGap - minGap);
+    }
+
+    // Check if a platform position is valid
+    function isValidPlatformPosition(newY, existingPlatforms) {
+      // Get the player character's height
+      const maxCharHeight = Math.max(
+        characterSettings['ironman'].height,
+        characterSettings['spiderman'].height
+      );
+      
+      // Minimum vertical distance required between platforms
+      const minVerticalDistance = maxCharHeight + 40;
+      
+      // Check against all existing platforms
+      for (let i = 0; i < existingPlatforms.length; i++) {
+        const platform = existingPlatforms[i];
+        
+        // Calculate vertical distance between platforms
+        const verticalDistance = Math.abs(platform.y - newY);
+        
+        // If platforms are too close together
+        if (verticalDistance < minVerticalDistance) {
+          return false;
+        }
+      }
+      
+      // No conflicts found
+      return true;
     }
 
     /***********************
@@ -1176,7 +1243,7 @@
 
         absoluteHeight += player.velY < 0 ? -player.velY : 0;
 
-        if (score >= 50 && !firstPlatformRemoved) {
+        if (score >= 30 && !firstPlatformRemoved) {
           platforms = platforms.filter(p => !p.isFirstPlatform);
           firstPlatformRemoved = true;
         }
@@ -1249,7 +1316,7 @@
         else if (player.x <= 0)
           player.x = 0;
 
-        if (player.y > canvas.height && score >= 50) {
+        if (player.y > canvas.height && score >= 30) {
           showGameOverOverlay();
           gameOver = true;
         } else if (player.y > canvas.height) {
