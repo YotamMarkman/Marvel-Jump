@@ -894,22 +894,6 @@
         const scoreIncrement = levelsJumped * 10;
         const newScore = score + scoreIncrement;
         
-        // Add Reality Stone at score 30
-        if (score < 30 && newScore >= 30) {
-          console.log("Spawning Reality Stone at score 30");
-          // Find a suitable platform
-          const availablePlatforms = platforms.filter(p => !p.enemy && !p.spaceStone && !p.timeStone && !p.realityStone);
-          if (availablePlatforms.length > 0) {
-            const targetPlatform = availablePlatforms[0];
-            const stone = document.createElement('div');
-            stone.className = 'consumable reality-stone';
-            stone.style.left = (targetPlatform.x + targetPlatform.width / 2 - 15) + 'px';
-            stone.style.top = (targetPlatform.y - 30) + 'px';
-            gameContainer.appendChild(stone);
-            targetPlatform.realityStone = stone;
-          }
-        }
-        
         if (newScore % 100 === 0 && platform) {
           platform.isMilestone = true;
         }
@@ -1567,28 +1551,28 @@
               playerRect.top < stoneRect.bottom
             ) {
               collectPowerup(stone);
-              platform.spaceStone = null;
+              stone.remove(); // Ensure stone is removed from DOM
+              platform.spaceStone = null; // Clear reference
             }
           }
         });
 
-        // Update Time Stone positions and check for collection
-            platforms.forEach(platform => {
+        // Check for Time Stone collection
+        platforms.forEach(platform => {
           if (platform.timeStone && !platform.isFalling) {
-            // Update Time Stone position
-            platform.timeStone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
-            platform.timeStone.style.top = (platform.y - 30) + 'px';
-
-            // Check for collection
+            const stone = platform.timeStone;
+            const stoneRect = stone.getBoundingClientRect();
+            const playerRect = playerEl.getBoundingClientRect();
+            
             if (
-              player.x < platform.x + platform.width &&
-              player.x + player.width > platform.x &&
-              player.y + player.height >= platform.y - 30 &&
-              player.y <= platform.y
+              playerRect.right > stoneRect.left &&
+              playerRect.left < stoneRect.right &&
+              playerRect.bottom > stoneRect.top &&
+              playerRect.top < stoneRect.bottom
             ) {
               activateTimeStone();
-              platform.timeStone.remove();
-              platform.timeStone = null;
+              stone.remove(); // Ensure stone is removed from DOM
+              platform.timeStone = null; // Clear reference
             }
           }
         });
