@@ -943,16 +943,21 @@
 
     // Modified to ensure platforms are properly spaced
     function isValidPlatformPosition(newY, platforms) {
-      // Get maximum character height for proper spacing
-      const maxCharHeight = Math.max(
-        characterSettings['ironman'].height,
-        characterSettings['spiderman'].height
-      );
+      // Fixed minimum distance between any two platforms
+      const minDistance = 100;
       
-      // Required vertical space between platforms
-      const minVerticalSpacing = maxCharHeight + 30; // Added extra space
+      // Check against all existing platforms
+      for (let i = 0; i < platforms.length; i++) {
+        const platform = platforms[i];
+        
+        // If platforms are too close together
+        if (Math.abs(platform.y - newY) < minDistance) {
+          return false;
+        }
+      }
       
-      return platforms.every(platform => Math.abs(platform.y - newY) >= minVerticalSpacing);
+      // No conflicts found
+      return true;
     }
 
     function updateLeaderboard(finalScore) {
@@ -1071,32 +1076,22 @@
       // Find a valid platform position
       let newY;
       let attempts = 0;
-      const maxAttempts = 100; // Increased from 50 to 100 to ensure we find a valid position
-      
-      // Base position that ensures proper spacing
-      const basePosition = i === 0 ? 
-                           canvas.height - 200 : // First platform
-                           platforms[platforms.length - 1].y - getOptimalVerticalGap();
-      
-      do {
-        // Add some randomness to the exact position
-        newY = basePosition + (Math.random() * 20 - 10);
+      const maxAttempts = 100;
+
+      // Base position for first platform
+      if (i === 0) {
+        newY = canvas.height - 200;
+      } else {
+        // For subsequent platforms, place them at a fixed distance above the previous one
+        newY = platforms[platforms.length - 1].y - 150; // Fixed distance of 150px
         
-        // Increase attempts counter
-        attempts++;
-        
-        // If we can't find a valid position after many attempts, adjust the base position
-        if (attempts >= maxAttempts) {
-          // Try a position further up
-          newY = basePosition - 20;
-          if (isValidPlatformPosition(newY, platforms)) {
-            break;
-          }
-          // If still not valid, use the base position
-          newY = basePosition;
-          break;
+        // Try to find a valid position
+        while (!isValidPlatformPosition(newY, platforms) && attempts < maxAttempts) {
+          // If invalid, adjust the position slightly and try again
+          newY -= 10;
+          attempts++;
         }
-      } while (!isValidPlatformPosition(newY, platforms));
+      }
       
       // Make sure platforms don't go above the screen
       newY = Math.max(newY, 50);
@@ -1222,22 +1217,26 @@
       // Call cleanupEnemies to ensure no stray enemies remain
       cleanupEnemies();
 
-      // Find the highest platform (lowest Y value)
+      // Find the highest platform
       let highestPlatform = platforms[0];
       for (let i = 1; i < platforms.length; i++) {
         if (platforms[i].y < highestPlatform.y) {
           highestPlatform = platforms[i];
         }
       }
-      
-      // Calculate a good vertical gap
-      const verticalGap = getOptimalVerticalGap();
-      
-      // Position the recycled platform above the highest one
-      let newY = highestPlatform.y - verticalGap;
-      
-      // Ensure the platform is visible
-      newY = Math.max(newY, -20);
+
+      // Place the recycled platform at a fixed distance above the highest one
+      let newY = highestPlatform.y - 150; // Fixed distance of 150px
+      let attempts = 0;
+
+      // Make sure position is valid
+      while (!isValidPlatformPosition(newY, platforms) && attempts < 50) {
+        newY -= 10;
+        attempts++;
+      }
+
+      // Ensure the platform is not above the visible area
+      newY = Math.max(newY, 30);
       
       // Decide if recycled platform will have an enemy
       const willHaveEnemy = Math.random() < getEnemyProbability();
@@ -1345,45 +1344,27 @@
 
     // Calculate optimal vertical gap between platforms
     function getOptimalVerticalGap() {
-      // Base the gap on the character's jump capability
-      const jumpHeight = Math.abs(baseJump) * 2; // Approximate jump height
+      // Fixed minimum gap based on character height
+      const minGap = 120; // Set a reliable minimum gap
       
-      // Get the maximum character height
-      const maxCharHeight = Math.max(
-        characterSettings['ironman'].height,
-        characterSettings['spiderman'].height
-      );
+      // Fixed maximum gap based on jump capability
+      const maxGap = 180; // Set a reliable maximum gap that's always jumpable
       
-      // Minimum gap should be larger than character height plus some buffer
-      const minGap = maxCharHeight + 40; // Reduced from 60 to 40 for more manageable jumps
-      
-      // Maximum gap should be jumpable
-      const maxGap = jumpHeight * 0.8; // Increased from 0.7 to 0.8 for higher jumps
-      
-      // Return a random value between min and max
+      // Return a value within this range
       return minGap + Math.random() * (maxGap - minGap);
     }
 
     // Check if a platform position is valid
     function isValidPlatformPosition(newY, existingPlatforms) {
-      // Get the player character's height
-      const maxCharHeight = Math.max(
-        characterSettings['ironman'].height,
-        characterSettings['spiderman'].height
-      );
-      
-      // Minimum vertical distance required between platforms
-      const minVerticalDistance = maxCharHeight + 60; // Increased from 40 to 60
+      // Fixed minimum distance between any two platforms
+      const minDistance = 100;
       
       // Check against all existing platforms
       for (let i = 0; i < existingPlatforms.length; i++) {
         const platform = existingPlatforms[i];
         
-        // Calculate vertical distance between platforms
-        const verticalDistance = Math.abs(platform.y - newY);
-        
         // If platforms are too close together
-        if (verticalDistance < minVerticalDistance) {
+        if (Math.abs(platform.y - newY) < minDistance) {
           return false;
         }
       }
