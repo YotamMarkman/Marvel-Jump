@@ -421,7 +421,7 @@
       position: absolute;
       width: 30px;
       height: 30px;
-      background-image: url('Time_stone.png');
+      background-image: url('time_stone.png');
       background-size: contain;
       background-repeat: no-repeat;
       z-index: 20;
@@ -1061,7 +1061,7 @@
       // Find a valid platform position
       let newY;
       let attempts = 0;
-      const maxAttempts = 50;
+      const maxAttempts = 100; // Increased from 50 to 100 to ensure we find a valid position
       
       // Base position that ensures proper spacing
       const basePosition = i === 0 ? 
@@ -1075,8 +1075,14 @@
         // Increase attempts counter
         attempts++;
         
-        // If we can't find a valid position after many attempts, just use the base position
+        // If we can't find a valid position after many attempts, adjust the base position
         if (attempts >= maxAttempts) {
+          // Try a position further up
+          newY = basePosition - 20;
+          if (isValidPlatformPosition(newY, platforms)) {
+            break;
+          }
+          // If still not valid, use the base position
           newY = basePosition;
           break;
         }
@@ -1088,11 +1094,14 @@
       // Decide if this platform will have an enemy (keep original probability)
       const willHaveEnemy = Math.random() < getEnemyProbability();
       
-      // Special case for third platform (i === 2)
-      const willHaveRealityStone = i === 2 ? true : (!willHaveEnemy && Math.random() < 0.01);
+      // Remove special case for third platform
+      const willHaveRealityStone = !willHaveEnemy && Math.random() < 0.01;
       
       // Only consider Space Stone if no enemy and no Reality Stone
-      const willHaveSpaceStone = !willHaveEnemy && !willHaveRealityStone && Math.random() < 0.1;
+      const willHaveSpaceStone = !willHaveEnemy && !willHaveRealityStone && Math.random() < 0.02;
+      
+      // Add Time Stone with 4% chance if no enemy and no other stones
+      const willHaveTimeStone = !willHaveEnemy && !willHaveRealityStone && !willHaveSpaceStone && Math.random() < 0.04;
       
       // Decide if this platform will move
       const movingRandom = Math.random() * 100;
@@ -1121,7 +1130,8 @@
         originalY: newY,
         displacement: 0,
         spaceStone: null,
-        realityStone: null
+        realityStone: null,
+        timeStone: null
       };
       
       // Create enemy if platform should have one
@@ -1150,7 +1160,41 @@
         platform.spaceStone = stone;
       }
       
+      // Create Time Stone if platform should have one
+      if (willHaveTimeStone) {
+        console.log("Creating Time Stone on platform", i);
+        const stone = document.createElement('div');
+        stone.className = 'consumable time-stone';
+        stone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+        stone.style.top = (platform.y - 30) + 'px';
+        gameContainer.appendChild(stone);
+        platform.timeStone = stone;
+      }
+      
       platforms.push(platform);
+    }
+
+    function cleanupEnemies() {
+      // Get all enemy elements
+      const enemies = document.querySelectorAll('.thanos, .mysterio, .venom');
+      const containerRect = gameContainer.getBoundingClientRect();
+      
+      // Check each enemy's position
+      enemies.forEach(enemy => {
+        const rect = enemy.getBoundingClientRect();
+        
+        // If enemy is below the game container or above the visible area
+        if (rect.top > containerRect.bottom || rect.bottom < containerRect.top) {
+          // Find the platform this enemy belongs to
+          const platform = platforms.find(p => p.enemy && p.enemy.element === enemy);
+          if (platform) {
+            // Clear the enemy reference from the platform
+            platform.enemy = null;
+          }
+          // Remove the enemy element
+          enemy.remove();
+        }
+      });
     }
 
     function recyclePlatform(platform) {
@@ -1164,6 +1208,9 @@
       if (platform.realityStone) {
         platform.realityStone.remove();
       }
+
+      // Call cleanupEnemies to ensure no stray enemies remain
+      cleanupEnemies();
 
       // Find the highest platform (lowest Y value)
       let highestPlatform = platforms[0];
@@ -1186,7 +1233,7 @@
       const willHaveEnemy = Math.random() < getEnemyProbability();
       
       // Only consider powerups if no enemy
-      const willHaveSpaceStone = !willHaveEnemy && Math.random() < 0.1;
+      const willHaveSpaceStone = !willHaveEnemy && Math.random() < 0.04;
       const willHaveTimeStone = !willHaveEnemy && !willHaveSpaceStone && Math.random() < 0.04;
       const willHaveRealityStone = !willHaveEnemy && !willHaveSpaceStone && !willHaveTimeStone && Math.random() < 0.01; // 1% chance
       
@@ -1240,7 +1287,12 @@
 
       // Create new Time Stone if platform should have one
       if (willHaveTimeStone) {
-        platform.timeStone = createTimeStone(platform);
+        const stone = document.createElement('div');
+        stone.className = 'consumable time-stone';
+        stone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+        stone.style.top = (platform.y - 30) + 'px';
+        gameContainer.appendChild(stone);
+        platform.timeStone = stone;
       } else {
         platform.timeStone = null;
       }
@@ -1292,11 +1344,11 @@
         characterSettings['spiderman'].height
       );
       
-      // Minimum gap should be larger than character height
-      const minGap = maxCharHeight + 40;
+      // Minimum gap should be larger than character height plus some buffer
+      const minGap = maxCharHeight + 40; // Reduced from 60 to 40 for more manageable jumps
       
       // Maximum gap should be jumpable
-      const maxGap = jumpHeight * 0.8; // 80% of jump height to ensure reachability
+      const maxGap = jumpHeight * 0.8; // Increased from 0.7 to 0.8 for higher jumps
       
       // Return a random value between min and max
       return minGap + Math.random() * (maxGap - minGap);
@@ -1311,7 +1363,7 @@
       );
       
       // Minimum vertical distance required between platforms
-      const minVerticalDistance = maxCharHeight + 40;
+      const minVerticalDistance = maxCharHeight + 60; // Increased from 40 to 60
       
       // Check against all existing platforms
       for (let i = 0; i < existingPlatforms.length; i++) {
@@ -1409,31 +1461,7 @@
           firstPlatformRemoved = true;
         }
 
-        let scrollAmount = 0;
-            if (player.y < canvas.height / 4) {
-          scrollAmount = canvas.height / 4 - player.y;
-          player.y += scrollAmount;
-                platforms.forEach(platform => {
-            platform.y += scrollAmount;
-            if (platform.isMoving) {
-              platform.originalY += scrollAmount;
-            }
-            if (platform.enemy) {
-              platform.enemy.y += scrollAmount;
-            }
-            if (platform.spaceStone) {
-              platform.spaceStone.style.top = (platform.y - 30) + 'px';
-            }
-                    if (platform.y > canvas.height) {
-              // Remove Space Stone before recycling platform
-              if (platform.spaceStone) {
-                platform.spaceStone.remove();
-                platform.spaceStone = null;
-              }
-              recyclePlatform(platform);
-                    }
-                });
-            }
+        let scrollAmount = handleScrolling();
 
         platforms.forEach(platform => {
           if (platform.isFalling) {
@@ -1557,7 +1585,7 @@
           }
         });
 
-        // Check for Time Stone collection
+        // Check for Time Stone collection - with improved handling
         platforms.forEach(platform => {
           if (platform.timeStone && !platform.isFalling) {
             const stone = platform.timeStone;
@@ -1570,9 +1598,20 @@
               playerRect.bottom > stoneRect.top &&
               playerRect.top < stoneRect.bottom
             ) {
-              activateTimeStone();
-              stone.remove(); // Ensure stone is removed from DOM
-              platform.timeStone = null; // Clear reference
+              console.log("Time Stone collected!");
+              // Remove the stone first to prevent multiple collisions
+              stone.remove();
+              platform.timeStone = null;
+              
+              // Force position reset to prevent sticking to platform
+              if (currentPlatform === platform) {
+                player.y = platform.y - player.height - 1; // Move slightly above platform
+              }
+              
+              // Activate the stone effect with slight delay
+              setTimeout(() => {
+                activateTimeStone();
+              }, 50);
             }
           }
         });
@@ -1617,7 +1656,7 @@
       platforms.forEach(platform => {
         platform.color = getPlatformColor(platform);
         ctx.fillStyle = platform.color;
-                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+        ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
         
         // Add highlight for platforms with enemies
         if (platform.enemy) {
@@ -1650,7 +1689,8 @@
           ctx.fill();
         }
         
-        if (platform.isMilestone) {
+        // Only draw milestone score box if it's not score 100
+        if (platform.isMilestone && platform.milestoneValue !== 100) {
           drawScoreBox(platform.x + platform.width / 2 - 15, platform.y - 15, platform.milestoneValue);
         }
         if (platform === currentPlatform && !platform.isFalling) {
@@ -1731,6 +1771,29 @@
         element.style.borderRadius = '50%';
         element.style.boxShadow = '0 0 10px #00ffff, 0 0 20px #00ffff';
       });
+    };
+
+    // Preload Time Stone image
+    const timeStoneImg = new Image();
+    timeStoneImg.src = "time_stone.png";
+    timeStoneImg.onload = function() {
+      console.log("Time Stone image loaded successfully");
+    };
+    timeStoneImg.onerror = function() {
+      console.error("Time Stone image failed to load");
+      // Fallback styling if image fails to load
+      const timeStoneElements = document.querySelectorAll('.time-stone');
+      timeStoneElements.forEach(element => {
+        element.style.background = 'radial-gradient(circle, #00ff00 0%, #008800 50%, #005500 100%)';
+        element.style.borderRadius = '50%';
+        element.style.boxShadow = '0 0 10px #00ff00, 0 0 20px #00ff00';
+      });
+    };
+
+    // Add GAME_CONSTANTS object
+    const GAME_CONSTANTS = {
+      GRAVITY: gravity,          // Using the existing gravity value
+      BASE_JUMP: baseJump        // Using the existing baseJump value
     };
 
     function startGame() {
@@ -1893,56 +1956,106 @@
     }
 
     function activateTimeStone() {
+      // Reset any existing Time Stone state
+      hasTimeStone = false;
+      player.jumping = false;
+      player.velY = 0;
+      
+      // Now activate the Time Stone
+      hasTimeStone = true;
+      collectSound.currentTime = 0;
+      collectSound.play().catch(e => console.log('Audio play failed:', e));
+      
+      // Store original values
+      const oldGravity = gravity;
+      const oldBaseJump = baseJump;
+      
       // Create visual effect
       const effectText = document.createElement('div');
       effectText.className = 'effect-text';
-      effectText.textContent = 'SUPER JUMP!';
+      effectText.textContent = 'TIME STONE ACTIVE!';
       effectText.style.color = '#00ff00';
       gameContainer.appendChild(effectText);
-      
-      // Apply super jump
-      player.velY = superJumpVelocity;
-      player.jumping = true;
       
       // Add visual effect to player
       playerEl.style.animation = 'super-jump 1s';
       
+      // Force immediate super jump
+      player.velY = 0; // Reset vertical velocity
+      player.jumping = true; // Set jumping state
+      player.velY = -30; // Apply super jump velocity
+      currentPlatform = null; // Remove platform connection
+      
+      // Add jump animation
+      playerEl.classList.add('jump');
+      setTimeout(() => {
+        playerEl.classList.remove('jump');
+      }, 300);
+      
+      // Temporarily modify gravity and jump power
+      gravity *= 0.5;
+      baseJump *= 1.5;
+      
+      // Show countdown
+      const countdown = document.createElement('div');
+      countdown.className = 'effect-countdown';
+      gameContainer.appendChild(countdown);
+      
+      let timeLeft = 7; // 7 seconds duration
+      countdown.textContent = timeLeft;
+      
       // Track initial position for score calculation
       const initialY = player.y;
-      const initialPlatformIndex = Math.floor(score / 10);
       
-      // Check for platforms jumped over
-      const checkJumpHeight = setInterval(() => {
-        if (player.velY >= 0) { // We've reached the peak of our jump
-          clearInterval(checkJumpHeight);
+      const countdownInterval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft >= 0) {
+          countdown.textContent = timeLeft;
+        }
+        if (timeLeft <= 0) {
+          clearInterval(countdownInterval);
+          countdown.remove();
+          effectText.remove();
           
-          // Calculate platforms jumped
-          const finalY = player.y;
-          const heightJumped = initialY - finalY;
-          const platformsJumped = Math.floor(heightJumped / 180); // Using platform spacing
+          // Reset gravity and jump power
+          gravity = oldGravity;
+          baseJump = oldBaseJump;
+          hasTimeStone = false;
           
-          // Add score for platforms jumped
-          if (platformsJumped > 0) {
-            score += platformsJumped * 10;
+          // Remove player animation
+          playerEl.style.animation = '';
+          
+          // Show end effect
+          const endEffect = document.createElement('div');
+          endEffect.className = 'effect-text';
+          endEffect.textContent = 'TIME RESTORED';
+          endEffect.style.color = '#ff4444';
+          gameContainer.appendChild(endEffect);
+          setTimeout(() => endEffect.remove(), 1000);
+        }
+      }, 1000);
+      
+      // Calculate score bonus based on height gained
+      const checkHeightInterval = setInterval(() => {
+        if (!hasTimeStone) {
+          clearInterval(checkHeightInterval);
+          const heightGained = Math.max(0, initialY - player.y);
+          const scoreBonus = Math.floor(heightGained / 50) * 10;
+          if (scoreBonus > 0) {
+            score += scoreBonus;
             scoreDisplay.textContent = "Score: " + score;
             
-            // Show platforms jumped
-            const jumpText = document.createElement('div');
-            jumpText.className = 'effect-text';
-            jumpText.textContent = `+${platformsJumped * 10} POINTS!`;
-            jumpText.style.color = '#00ff00';
-            jumpText.style.top = '150px';
-            gameContainer.appendChild(jumpText);
-            setTimeout(() => jumpText.remove(), 1000);
+            // Show bonus score
+            const bonusText = document.createElement('div');
+            bonusText.className = 'effect-text';
+            bonusText.textContent = `+${scoreBonus} POINTS!`;
+            bonusText.style.color = '#00ff00';
+            bonusText.style.top = '150px';
+            gameContainer.appendChild(bonusText);
+            setTimeout(() => bonusText.remove(), 1000);
           }
         }
       }, 100);
-
-      // Remove effect text after 1 second
-      setTimeout(() => {
-        effectText.remove();
-        playerEl.style.animation = '';
-      }, 1000);
     }
 
     // Add the FPS game logic in the script section
@@ -2211,6 +2324,104 @@
       
       // Spawn next enemy with shorter delay for more challenge
       setTimeout(spawnFPSEnemies, 2500); // Decreased from 3000 to 2500 for faster spawn rate
+    }
+
+    function handleScrolling() {
+      let scrollAmount = 0;
+      if (player.y < canvas.height / 4) {
+        scrollAmount = canvas.height / 4 - player.y;
+        player.y += scrollAmount;
+        
+        platforms.forEach(platform => {
+          platform.y += scrollAmount;
+          if (platform.isMoving) {
+            platform.originalY += scrollAmount;
+          }
+          if (platform.enemy) {
+            platform.enemy.y += scrollAmount;
+            if (platform.enemy.element) {
+              platform.enemy.element.style.top = platform.enemy.y + 'px';
+            }
+          }
+          // Update Time Stone position during scrolling
+          if (platform.timeStone) {
+            platform.timeStone.style.top = (platform.y - 30) + 'px';
+          }
+          if (platform.y > canvas.height) {
+            // Clean up any existing elements before recycling
+            if (platform.enemy && platform.enemy.element) {
+              platform.enemy.element.remove();
+              platform.enemy = null;
+            }
+            recyclePlatform(platform);
+          }
+        });
+        
+        // Call cleanup after scrolling
+        cleanupEnemies();
+      }
+      return scrollAmount;
+    }
+
+    function resetGame() {
+        score = 0;
+        updateScore();
+        platforms.forEach(platform => {
+            if (platform.enemy && platform.enemy.element) {
+                platform.enemy.element.remove();
+            }
+            if (platform.spaceStone) {
+                platform.spaceStone.remove();
+            }
+            if (platform.timeStone) {
+                platform.timeStone.remove();
+            }
+            if (platform.realityStone) {
+                platform.realityStone.remove();
+            }
+        });
+        cleanupEnemies(); // Add cleanup on game reset
+        // ... existing code ...
+    }
+
+    function handleEnemyCollision(enemy) {
+        if (isInvincible) {
+            // Remove the enemy when defeated
+            if (enemy.element) {
+                enemy.element.remove();
+            }
+            // Find and clear the enemy reference from its platform
+            const platform = platforms.find(p => p.enemy === enemy);
+            if (platform) {
+                platform.enemy = null;
+            }
+            cleanupEnemies(); // Add cleanup after defeating enemy
+            // ... existing code ...
+        }
+    }
+
+    function updatePlatforms() {
+        platforms.forEach(platform => {
+            if (platform.isFalling) {
+                platform.fallSpeed += gravity;
+                platform.y += platform.fallSpeed;
+                
+                // Update enemy position if platform has one
+                if (platform.enemy) {
+                    platform.enemy.y = platform.y - platform.enemy.height;
+                }
+                
+                // If platform falls off screen
+                if (platform.y > canvas.height) {
+                    if (platform.enemy && platform.enemy.element) {
+                        platform.enemy.element.remove();
+                    }
+                    platform.enemy = null;
+                    cleanupEnemies(); // Add cleanup for falling platforms
+                    recyclePlatform(platform);
+                }
+            }
+        });
     }
     </script>
 </body>

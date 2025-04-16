@@ -13,7 +13,13 @@ let player = {
   speed: 5,
   velX: 0,
   velY: 0,
-  jumping: false
+  jumping: false,
+  coyoteTime: 0,  // Time window after leaving platform where jump is still allowed
+  maxCoyoteTime: 7,  // Maximum frames for coyote time
+  jumpBuffer: 0,  // Time window before landing where jump input is buffered
+  maxJumpBuffer: 5,  // Maximum frames for jump buffer
+  canDoubleJump: false,  // Enable double jump capability
+  isOnGround: false
 };
 
 let selectedCharacter = null;
@@ -142,4 +148,61 @@ function updatePlayer() {
   // Update DOM element position
   playerEl.style.left = player.x + "px";
   playerEl.style.top = player.y + "px";
+}
+
+class Character {
+    constructor() {
+        this.velX = 0;
+        this.velY = 0;
+        this.isJumping = false;
+        this.coyoteTime = 0;  // Time window after leaving platform where jump is still allowed
+        this.maxCoyoteTime = 7;  // Maximum frames for coyote time
+        this.jumpBuffer = 0;  // Time window before landing where jump input is buffered
+        this.maxJumpBuffer = 5;  // Maximum frames for jump buffer
+        this.canDoubleJump = false;  // Enable double jump capability
+    }
+
+    update() {
+        // Update coyote time
+        if (!this.isOnGround && this.coyoteTime > 0) {
+            this.coyoteTime--;
+        }
+        
+        // Update jump buffer
+        if (this.jumpBuffer > 0) {
+            this.jumpBuffer--;
+            if (this.isOnGround) {
+                this.jump();
+                this.jumpBuffer = 0;
+            }
+        }
+
+        // Reset coyote time when touching ground
+        if (this.isOnGround) {
+            this.coyoteTime = this.maxCoyoteTime;
+            this.canDoubleJump = true;
+        }
+    }
+
+    jump() {
+        if (this.isOnGround || this.coyoteTime > 0 || this.canDoubleJump) {
+            this.velY = GAME_CONSTANTS.BASE_JUMP;
+            if (!this.isOnGround && !this.coyoteTime) {
+                this.canDoubleJump = false;  // Use up double jump
+                this.velY = GAME_CONSTANTS.BASE_JUMP * 0.8;  // Slightly weaker double jump
+            }
+            this.isJumping = true;
+            this.coyoteTime = 0;
+            
+            // Add jump animation
+            const playerElement = document.querySelector('.player');
+            playerElement.classList.add('jump');
+            setTimeout(() => {
+                playerElement.classList.remove('jump');
+            }, 500);
+        } else {
+            // Buffer the jump input
+            this.jumpBuffer = this.maxJumpBuffer;
+        }
+    }
 }
