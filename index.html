@@ -99,6 +99,41 @@
       color: #888;
       font-size: 16px;
     }
+    /* Add styles for controls display */
+    .game-controls {
+      margin-top: 40px;
+      text-align: center;
+      color: white;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 20px;
+      border-radius: 10px;
+      border: 2px solid #444;
+    }
+    .game-controls h2 {
+      font-size: 24px;
+      margin-bottom: 15px;
+      color: #00ff00;
+    }
+    .control-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 10px 0;
+      font-size: 18px;
+    }
+    .control-key {
+      background: #333;
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 5px;
+      margin-right: 10px;
+      min-width: 40px;
+      text-align: center;
+      border: 1px solid #666;
+    }
+    .control-description {
+      color: #ccc;
+    }
     /* The canvas (for platforms, enemies, etc.) */
     #gameCanvas {
       position: absolute;
@@ -595,6 +630,21 @@
         <img src="spiderman.png" alt="Spider-Man" class="character-img">
         <div class="character-name">Spider-Man</div>
         <div class="character-key">Press 'S' to select</div>
+      </div>
+    </div>
+    <div class="game-controls">
+      <h2>Game Controls</h2>
+      <div class="control-item">
+        <div class="control-key">← →</div>
+        <div class="control-description">Move Left/Right</div>
+      </div>
+      <div class="control-item">
+        <div class="control-key">SPACE</div>
+        <div class="control-description">Jump</div>
+      </div>
+      <div class="control-item">
+        <div class="control-key">W</div>
+        <div class="control-description">Shoot</div>
       </div>
     </div>
   </div>
