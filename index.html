@@ -588,6 +588,21 @@
       50% { transform: scale(1.1); }
       100% { transform: scale(1); }
     }
+
+    /* Add this to the existing style section */
+    .game-title {
+      color: #ff0000;
+      font-size: 48px;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
     </style>
 </head>
 <body>
@@ -619,6 +634,7 @@
     <audio id="gameOverSound">
       <source src="game_over.mp3" type="audio/mp3">
     </audio>
+    <h1 class="game-title">Marvel Jump</h1>
     <h1>Choose Your Character</h1>
     <div class="character-options">
       <div class="character-option" onclick="selectCharacter('ironman')">
@@ -1574,8 +1590,10 @@
 
         if (floorRising) {
           // Calculate how much the floor should rise based on score
-          // Higher scores make it rise faster
-          const riseAmount = floorRiseSpeed * (1 + Math.floor((score - 500) / 200) * 0.1);
+          // Higher scores make it rise faster, but cap at a maximum speed
+          const baseSpeed = floorRiseSpeed;
+          const scoreMultiplier = Math.min(1 + Math.floor((score - 500) / 200) * 0.1, 2.0); // Cap at 2x speed
+          const riseAmount = baseSpeed * scoreMultiplier;
           
           // Move the floor up
           floorLevel -= riseAmount;
@@ -2167,10 +2185,10 @@
       crosshair.style.left = `${cursorX}%`;
       crosshair.style.top = `${cursorY}%`;
       
-      // Update enemies
+      // Update enemies with increased speed
       fpsEnemies.forEach((enemy, index) => {
-        // Move enemy downward with increased speed
-        enemy.y += 0.3; // Increased from 0.2 to 0.3 for faster movement
+        // Move enemy downward with increased speed (0.4 instead of 0.3)
+        enemy.y += 0.4;
         enemy.element.style.top = `${enemy.y}%`;
         
         // Check if enemy reached the bottom of the screen
@@ -2182,7 +2200,7 @@
       
       // Update projectiles
       fpsProjectiles.forEach((projectile, pIndex) => {
-        projectile.z += 5; // Move away from player
+        projectile.z += 5;
         projectile.element.style.transform = `translateZ(${projectile.z}px)`;
         
         // Check collisions
@@ -2304,14 +2322,15 @@
       console.log("Starting FPS game...");
       isGamePaused = true;
       
+      // Play character's music
+      if (currentGameMusic) {
+        currentGameMusic.currentTime = 0;
+        currentGameMusic.play();
+      }
+      
       // Reset cursor position to center
       cursorX = 50;
       cursorY = 50;
-      
-      // Stop platformer music
-      if (currentGameMusic) {
-        currentGameMusic.pause();
-      }
       
       const overlay = document.getElementById('fpsOverlay');
       const countdownOverlay = document.getElementById('countdownOverlay');
@@ -2395,6 +2414,13 @@
       
       const enemy = document.createElement('div');
       enemy.className = 'fps-enemy';
+      
+      // Set larger size for Thanos when playing as Iron Man
+      if (selectedCharacter === 'ironman') {
+        enemy.style.width = '200px';  // Increased from 150px
+        enemy.style.height = '200px'; // Increased from 150px
+      }
+      
       enemy.style.backgroundImage = `url('${selectedCharacter === 'ironman' ? 'thanos.png' : 'venom.png'}')`;
       
       // Random position at the top
@@ -2412,7 +2438,7 @@
       });
       
       // Spawn next enemy with shorter delay for more challenge
-      setTimeout(spawnFPSEnemies, 2500); // Decreased from 3000 to 2500 for faster spawn rate
+      setTimeout(spawnFPSEnemies, 2500);
     }
 
     function handleScrolling() {
