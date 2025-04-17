@@ -778,6 +778,9 @@
     const baseJump = -12;  // Increased jump power
     let score = 0;
     let highScore = 0;
+    let floorRising = false;
+    let floorLevel = canvas.height; // Start at the bottom of the canvas
+    let floorRiseSpeed = 0.2; // Base rising speed - adjust for difficulty
 
     // Default player physics object; dimensions will be updated after character select
         let player = {
@@ -991,17 +994,23 @@
       return platform.isFirstPlatform ? '#2E8B57' : '#593A0A';
     }
 
-    // Modified to ensure platforms are properly spaced
+        // Replace the existing isValidPlatformPosition function with this improved version
     function isValidPlatformPosition(newY, platforms) {
-      // Fixed minimum distance between any two platforms
+      // Minimum distance between platforms in Y direction
       const minDistance = 100;
       
       // Check against all existing platforms
       for (let i = 0; i < platforms.length; i++) {
         const platform = platforms[i];
         
-        // If platforms are too close together
+        // If platforms are at exactly the same height or too close together
         if (Math.abs(platform.y - newY) < minDistance) {
+          return false;
+        }
+        
+        // Strict check: consider platforms at the same height (±10px) invalid
+        // This ensures no platforms share the same height, even if they're far apart horizontally
+        if (Math.abs(platform.y - newY) <= 10) {
           return false;
         }
       }
@@ -1546,6 +1555,38 @@
         else if (player.x <= 0)
                 player.x = 0;
 
+        if (score >= 500 && !floorRising) {
+          // Activate rising floor when score reaches 500
+          floorRising = true;
+          
+          // Create a warning message
+          const warningText = document.createElement('div');
+          warningText.className = 'effect-text';
+          warningText.textContent = 'DANGER! FLOOR IS RISING!';
+          warningText.style.color = '#ff3300';
+          gameContainer.appendChild(warningText);
+          
+          // Remove the warning after 3 seconds
+          setTimeout(() => {
+            warningText.remove();
+          }, 3000);
+        }
+
+        if (floorRising) {
+          // Calculate how much the floor should rise based on score
+          // Higher scores make it rise faster
+          const riseAmount = floorRiseSpeed * (1 + Math.floor((score - 500) / 200) * 0.1);
+          
+          // Move the floor up
+          floorLevel -= riseAmount;
+          
+          // Check if player has hit the rising floor
+          if (player.y + player.height > floorLevel) {
+            showGameOverOverlay();
+            gameOver = true;
+          }
+        }
+
         if (player.y > canvas.height && score >= 30) {
           showGameOverOverlay();
           gameOver = true;
@@ -1741,6 +1782,9 @@
           ctx.fillRect(platform.x, platform.y - 5, countdownWidth, 3);
         }
       });
+
+      // Draw the rising floor before the player
+      drawRisingFloor();
 
       // Update player element position
       playerEl.style.left = player.x + "px";
@@ -2018,6 +2062,11 @@
       effectText.style.color = '#00ff00';
       gameContainer.appendChild(effectText);
       
+      // Remove the text after 1 second
+      setTimeout(() => {
+        effectText.remove();
+      }, 1000);
+      
       // Add visual effect to player
       playerEl.style.animation = 'super-jump 1s';
       
@@ -2056,7 +2105,6 @@
         if (timeLeft <= 0) {
           clearInterval(countdownInterval);
           countdown.remove();
-          effectText.remove();
           
           // Reset gravity and jump power
           gravity = oldGravity;
@@ -2463,6 +2511,24 @@
                 }
             }
         });
+    }
+
+    // Add this function after the other utility functions
+    function drawRisingFloor() {
+      if (!floorRising) return;
+      
+      // Draw a glowing red/orange gradient for the floor
+      const floorGradient = ctx.createLinearGradient(0, floorLevel, 0, floorLevel + 20);
+      floorGradient.addColorStop(0, 'rgba(255, 0, 0, 0.8)');
+      floorGradient.addColorStop(0.5, 'rgba(255, 120, 0, 0.9)');
+      floorGradient.addColorStop(1, 'rgba(255, 50, 0, 0.7)');
+      
+      ctx.fillStyle = floorGradient;
+      ctx.fillRect(0, floorLevel, canvas.width, canvas.height - floorLevel);
+      
+      // Add a warning glow at the top edge of the floor
+      ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+      ctx.fillRect(0, floorLevel - 5, canvas.width, 5);
     }
     </script>
 </body>
