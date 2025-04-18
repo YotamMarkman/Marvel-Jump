@@ -1281,12 +1281,19 @@
       // Clean up existing elements
       if (platform.enemy && platform.enemy.element) {
         platform.enemy.element.remove();
+        platform.enemy = null;
       }
       if (platform.spaceStone) {
         platform.spaceStone.remove();
+        platform.spaceStone = null;
       }
       if (platform.realityStone) {
         platform.realityStone.remove();
+        platform.realityStone = null;
+      }
+      if (platform.timeStone) {
+        platform.timeStone.remove();
+        platform.timeStone = null;
       }
 
       // Call cleanupEnemies to ensure no stray enemies remain
@@ -1319,7 +1326,7 @@
       // Only consider powerups if no enemy
       const willHaveSpaceStone = !willHaveEnemy && Math.random() < 0.04;
       const willHaveTimeStone = !willHaveEnemy && !willHaveSpaceStone && Math.random() < 0.04;
-      const willHaveRealityStone = !willHaveEnemy && !willHaveSpaceStone && !willHaveTimeStone && Math.random() < 0.01; // 1% chance
+      const willHaveRealityStone = !willHaveEnemy && !willHaveSpaceStone && !willHaveTimeStone && Math.random() < 0.01;
       
       // Decide if this recycled platform will move
       const movingRandom = Math.random() * 100;
@@ -1357,7 +1364,7 @@
         platform.enemy = null;
       }
 
-      // Create new Space Stone if platform should have one (and has no enemy)
+      // Create new Space Stone if platform should have one
       if (willHaveSpaceStone) {
         const stone = document.createElement('div');
         stone.className = 'consumable space-stone';
@@ -1383,7 +1390,6 @@
 
       // Create new Reality Stone if platform should have one
       if (willHaveRealityStone) {
-        console.log("Creating Reality Stone...");
         const stone = document.createElement('div');
         stone.className = 'consumable reality-stone';
         stone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
@@ -1592,7 +1598,8 @@
           // Calculate how much the floor should rise based on score
           // Higher scores make it rise faster, but cap at a maximum speed
           const baseSpeed = floorRiseSpeed;
-          const scoreMultiplier = Math.min(1 + Math.floor((score - 500) / 200) * 0.1, 2.0); // Cap at 2x speed
+          // Reduce the score multiplier and cap at a lower maximum speed
+          const scoreMultiplier = Math.min(1 + Math.floor((score - 500) / 400) * 0.05, 1.5); // Cap at 1.5x speed
           const riseAmount = baseSpeed * scoreMultiplier;
           
           // Move the floor up
@@ -2467,6 +2474,10 @@
             if (platform.enemy && platform.enemy.element) {
               platform.enemy.element.remove();
               platform.enemy = null;
+            }
+            if (platform.timeStone) {
+              platform.timeStone.remove();
+              platform.timeStone = null;
             }
             recyclePlatform(platform);
           }

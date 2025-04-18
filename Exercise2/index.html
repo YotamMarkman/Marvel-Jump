@@ -1,0 +1,2561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marvel Jump</title>
+    <style>
+    /* General body and container styles */
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #222;
+      font-family: Arial, sans-serif;
+    }
+    /* Score displays positioned at upper left */
+    #scoreDisplay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 20px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 2px 2px 4px #000;
+      z-index: 10;
+    }
+    #highScoreDisplay {
+      position: absolute;
+      top: 40px;
+      left: 10px;
+      font-size: 20px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 2px 2px 4px #000;
+      z-index: 10;
+    }
+    /* Game container: holds the canvas and the player element */
+    #gameContainer {
+      position: relative;
+      width: 400px;
+      height: 600px;
+      margin: 0 auto;
+      overflow: hidden;
+      border: 2px solid #000;
+      background: url("Titan_background.png") no-repeat center center;
+      background-size: cover;
+      display: flex;
+      justify-content: center;
+    }
+    /* Character Selection Screen */
+    #characterSelect {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    #characterSelect h1 {
+      color: white;
+      font-size: 36px;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+    .character-options {
+      display: flex;
+      gap: 40px;
+    }
+    .character-option {
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .character-option:hover {
+      transform: scale(1.1);
+    }
+    .character-img {
+      width: 150px;
+      height: 225px;
+      border: 3px solid #666;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      object-fit: contain;
+    }
+    .character-option:hover .character-img {
+      border-color: #fff;
+    }
+    .character-name {
+      color: white;
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+    .character-key {
+      color: #888;
+      font-size: 16px;
+    }
+    /* Add styles for controls display */
+    .game-controls {
+      margin-top: 40px;
+      text-align: center;
+      color: white;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 20px;
+      border-radius: 10px;
+      border: 2px solid #444;
+    }
+    .game-controls h2 {
+      font-size: 24px;
+      margin-bottom: 15px;
+      color: #00ff00;
+    }
+    .control-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 10px 0;
+      font-size: 18px;
+    }
+    .control-key {
+      background: #333;
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 5px;
+      margin-right: 10px;
+      min-width: 40px;
+      text-align: center;
+      border: 1px solid #666;
+    }
+    .control-description {
+      color: #ccc;
+    }
+    /* The canvas (for platforms, enemies, etc.) */
+    #gameCanvas {
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 1;
+      background-color: transparent;
+    }
+    /* Player graphic base styles */
+    .player-base {
+      position: absolute;
+      background-repeat: no-repeat;
+      background-position: center bottom; /* Align to bottom */
+      background-size: contain;
+      z-index: 5;
+    }
+    /* Iron Man graphic */
+    .ironman {
+      width: 120px;
+      height: 180px;
+      background-image: url("ironman.png");
+      background-size: contain;
+      background-position: center bottom;
+    }
+    /* Spider-Man graphic */
+    .spiderman {
+      width: 60px;
+      height: 90px;
+      background-image: url("spiderman.png");
+      background-size: contain;
+      background-position: center bottom;
+    }
+    /* Enemy graphics - made larger */
+    .thanos {
+      position: absolute;
+      width: 60px;  /* Increased from 40px */
+      height: 80px; /* Increased from 60px */
+      background: url("thanos.png") no-repeat center center / cover;
+      z-index: 4;
+    }
+    .mysterio, .venom {
+      position: absolute;
+      width: 60px;  /* Increased from 40px */
+      height: 80px; /* Increased from 60px */
+      background: no-repeat center center / cover;
+      z-index: 4;
+    }
+    .mysterio {
+      background-image: url("mysterio.png");
+    }
+    .venom {
+      background-image: url("venom.png");
+    }
+    /* Jump pop animation for visual feedback */
+    @keyframes jumpPop {
+      0%   { transform: translateY(0); }
+      50%  { transform: translateY(-20px); }
+      100% { transform: translateY(0); }
+    }
+    /* Apply jump animation to the player element */
+    #playerCharacter.jump {
+      animation: jumpPop 0.3s ease-out;
+    }
+    /* Bullet styles for different characters */
+    .bullet {
+      position: absolute;
+      z-index: 6;
+      width: 6px;
+      height: 12px;
+    }
+
+    .blast {
+      background: yellow;
+      box-shadow: 0 0 10px #ffff00;
+      border-radius: 50%;
+    }
+
+    .web {
+      background: white;
+      box-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+    }
+
+    /* Web strands */
+    .web:before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -2px;
+      width: 8px;
+      height: 8px;
+      background: 
+        linear-gradient(45deg, transparent 45%, white 45%, white 55%, transparent 55%),
+        linear-gradient(-45deg, transparent 45%, white 45%, white 55%, transparent 55%);
+      background-size: 100% 100%;
+    }
+
+    @keyframes shootUpAnimation {
+      0% { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(-600px); opacity: 0; }
+    }
+
+    .shootUp {
+      animation: shootUpAnimation 1s linear forwards;
+    }
+    /* Game Over overlay styling */
+    #gameOverOverlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      text-align: center;
+      padding-top: 100px;
+      z-index: 100;
+    }
+    #gameOverOverlay h1 {
+      font-size: 50px;
+      margin-bottom: 20px;
+    }
+    #gameOverOverlay button {
+      font-size: 20px;
+      padding: 10px 20px;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    #gameOverOverlay ol {
+      text-align: left;
+      display: inline-block;
+      margin-top: 20px;
+      padding: 0 20px;
+    }
+    #gameOverOverlay li {
+      list-style: decimal;
+      font-size: 18px;
+      margin: 5px 0;
+    }
+    /* Mute button styles */
+    #muteButton {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid white;
+      border-radius: 50%;
+      cursor: pointer;
+      z-index: 10;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.3s ease;
+    }
+
+    #muteButton:hover {
+      transform: scale(1.1);
+      background: rgba(0, 0, 0, 0.7);
+    }
+
+    #muteButton::before {
+      content: '🔊';
+      font-size: 20px;
+      color: white;
+    }
+
+    #muteButton.muted::before {
+      content: '🔇';
+    }
+
+    /* Space Stone powerup styles */
+    .consumable {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background-size: contain;
+      background-repeat: no-repeat;
+      z-index: 20; /* Increased z-index to appear above platforms */
+      pointer-events: none; /* Allow clicks to pass through to platforms */
+    }
+
+    .space-stone {
+      background-image: url('space_stone.png');
+      animation: float 2s ease-in-out infinite;
+      /* Add a glowing effect */
+      box-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+      /* Ensure the stone is visible */
+      opacity: 1;
+      /* Add a border to make it more visible */
+      border: 2px solid #00ffff;
+      border-radius: 50%;
+    }
+
+    .effect-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+      font-weight: bold;
+      color: #00ffff;
+      text-shadow: 0 0 10px #00ffff;
+      animation: fadeInOut 1s ease-in-out;
+      z-index: 10;
+    }
+
+    .effect-countdown {
+      position: absolute;
+      top: 60%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 36px;
+      font-weight: bold;
+      color: #00ffff;
+      text-shadow: 0 0 10px #00ffff;
+      z-index: 10;
+    }
+
+    .explosion-particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background-color: #00ffff;
+      border-radius: 50%;
+      animation: explode 1s ease-out forwards;
+    }
+
+    @keyframes float {
+      0%, 100% { 
+        transform: translateY(0) scale(1);
+      }
+      50% { 
+        transform: translateY(-10px) scale(1.1);
+      }
+    }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; }
+      20% { opacity: 1; }
+      80% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    @keyframes explode {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(20);
+        opacity: 0;
+      }
+    }
+
+    /* Visual indicator for invincibility effect */
+    .effect-text {
+      position: absolute;
+      top: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #00bfff;
+      font-size: 28px;
+      font-weight: bold;
+      text-shadow: 0 0 10px rgba(0, 191, 255, 0.8), 0 0 20px rgba(0, 191, 255, 0.6);
+      z-index: 100;
+      opacity: 1;
+      transition: opacity 0.5s ease-out;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .effect-countdown {
+      position: absolute;
+      top: 130px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #00bfff;
+      font-size: 22px;
+      text-shadow: 0 0 5px rgba(0, 191, 255, 0.8);
+      z-index: 100;
+    }
+
+    /* Floating animation for power-ups */
+    @keyframes pulse {
+      0% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.1); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
+
+    /* Blue fire effect */
+    @keyframes flicker {
+      0% { height: 20px; opacity: 0.7; }
+      100% { height: 30px; opacity: 0.9; }
+    }
+
+    .flame {
+      position: absolute;
+      bottom: 0;
+      width: 10px;
+      height: 20px;
+      background: linear-gradient(to top, transparent, #00f, #0ff);
+      border-radius: 50% 50% 0 0;
+      filter: blur(2px);
+      opacity: 0.7;
+      animation-duration: 0.5s;
+      animation-name: flicker;
+      animation-iteration-count: infinite;
+      animation-direction: alternate;
+    }
+
+    /* Add CSS for invincibility effect */
+    @keyframes invincible-flash {
+      from { opacity: 1; filter: brightness(1) hue-rotate(0deg); }
+      to { opacity: 0.8; filter: brightness(1.5) hue-rotate(45deg); }
+    }
+
+    /* Time Stone powerup styles */
+    .time-stone {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background-image: url('time_stone.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      z-index: 20;
+      pointer-events: none;
+      animation: float 2s ease-in-out infinite;
+      box-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+      opacity: 1;
+      border: 2px solid #00ff00;
+      border-radius: 50%;
+    }
+
+    /* Reality Stone styles */
+    .reality-stone {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background-image: url('reality_stone.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      z-index: 20;
+      pointer-events: none;
+      animation: float 2s ease-in-out infinite;
+      box-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000;
+      opacity: 1;
+      border: 2px solid #ff0000;
+      border-radius: 50%;
+    }
+
+    /* Super jump animation */
+    @keyframes super-jump {
+      0% { transform: scale(1); filter: hue-rotate(0deg); }
+      50% { transform: scale(1.2); filter: hue-rotate(180deg); }
+      100% { transform: scale(1); filter: hue-rotate(360deg); }
+    }
+
+    /* FPS Game Styles */
+    #crosshair {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px;
+      height: 40px;
+      pointer-events: none;
+      z-index: 2000;
+      transition: transform 0.1s ease-out;
+    }
+
+    .cross-v, .cross-h {
+      position: absolute;
+      background: rgba(255, 0, 0, 0.7);
+    }
+
+    .cross-v {
+      width: 2px;
+      height: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .cross-h {
+      width: 40px;
+      height: 2px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    #fpsScore {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      color: white;
+      font-size: 24px;
+      font-family: Arial, sans-serif;
+      z-index: 2000;
+    }
+
+    #fpsTimer {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      color: white;
+      font-size: 24px;
+      font-family: Arial, sans-serif;
+      z-index: 2000;
+    }
+
+    .fps-enemy {
+      position: absolute;
+      width: 150px;  /* Increased from 100px */
+      height: 150px; /* Increased from 100px */
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      transform-style: preserve-3d;
+      z-index: 1000;
+    }
+
+    .fps-projectile {
+      position: absolute;
+      width: 30px;  /* Increased from 20px */
+      height: 30px; /* Increased from 20px */
+      transform-style: preserve-3d;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .iron-man-blast {
+      background: radial-gradient(circle, yellow, orange);
+      box-shadow: 0 0 10px yellow;
+    }
+
+    .spider-web {
+      background: radial-gradient(circle, white, rgba(255,255,255,0.5));
+      box-shadow: 0 0 10px white;
+    }
+
+    /* Add countdown styles */
+    #countdownOverlay {
+      transition: opacity 0.5s ease-in-out;
+    }
+    
+    #countdown {
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    /* Add this to the existing style section */
+    .game-title {
+      color: #ff0000;
+      font-size: 48px;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    </style>
+</head>
+<body>
+  <!-- Character Selection Screen -->
+  <div id="characterSelect">
+    <!-- Add audio element for opening screen music -->
+    <audio id="openingMusic" loop>
+      <source src="Opening_screen.mp3" type="audio/mp3">
+    </audio>
+    <!-- Add audio elements for character-specific music -->
+    <audio id="ironManMusic" loop>
+      <source src="iron_man_song.mp3" type="audio/mp3">
+    </audio>
+    <audio id="spiderManMusic" loop>
+      <source src="spider_man_song.mp3" type="audio/mp3">
+    </audio>
+    <!-- New shooting sound elements -->
+    <audio id="blastSound">
+      <source src="blast_sound.mp3" type="audio/mp3">
+    </audio>
+    <audio id="webSound">
+      <source src="web_sound.mp3" type="audio/mp3">
+    </audio>
+    <!-- Powerup sound -->
+    <audio id="collectSound">
+      <source src="powerup_collect.mp3" type="audio/mp3">
+    </audio>
+    <!-- Game Over sound -->
+    <audio id="gameOverSound">
+      <source src="game_over.mp3" type="audio/mp3">
+    </audio>
+    <h1 class="game-title">Marvel Jump</h1>
+    <h1>Choose Your Character</h1>
+    <div class="character-options">
+      <div class="character-option" onclick="selectCharacter('ironman')">
+         <img src="ironman.png" alt="Iron Man" class="character-img">
+        <div class="character-name">Iron Man</div>
+        <div class="character-key">Press 'I' to select</div>
+      </div>
+      <div class="character-option" onclick="selectCharacter('spiderman')">
+        <img src="spiderman.png" alt="Spider-Man" class="character-img">
+        <div class="character-name">Spider-Man</div>
+        <div class="character-key">Press 'S' to select</div>
+      </div>
+    </div>
+    <div class="game-controls">
+      <h2>Game Controls</h2>
+      <div class="control-item">
+        <div class="control-key">← →</div>
+        <div class="control-description">Move Left/Right</div>
+      </div>
+      <div class="control-item">
+        <div class="control-key">SPACE</div>
+        <div class="control-description">Jump</div>
+      </div>
+      <div class="control-item">
+        <div class="control-key">W</div>
+        <div class="control-description">Shoot</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="scoreDisplay">Score: 0</div>
+  <div id="highScoreDisplay">High Score: 0</div>
+
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <!-- This is the player character element -->
+    <div id="playerCharacter" class="player-base"></div>
+    <button id="muteButton" title="Press M to toggle mute"></button>
+  </div>
+
+  <div id="gameOverOverlay">
+    <h1>GAME OVER</h1>
+    <div id="finalScoreDisplay"></div>
+    <button id="playAgainButton">Play Again</button>
+    <h2>Leaderboard</h2>
+    <ol id="leaderboardList"></ol>
+    <p>Press <strong>Q</strong> to Quit, <strong>R</strong> or <strong>Space</strong> to Restart</p>
+  </div>
+
+  <!-- Add the FPS overlay container after the game over overlay -->
+  <div id="fpsOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000;">
+    <div id="fpsViewport" style="position: relative; width: 100%; height: 100%; overflow: hidden; perspective: 1000px; background: url('Titan_background.png') no-repeat center center; background-size: cover;">
+      <div id="countdownOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 2000;">
+        <div id="countdown" style="color: white; font-size: 120px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">GET READY</div>
+      </div>
+      <div id="crosshair">
+        <div class="cross-v"></div>
+        <div class="cross-h"></div>
+      </div>
+      <div id="fpsScore">Score: <span>0</span></div>
+      <div id="fpsTimer">Time: 15s</div>
+      <div id="fpsEnemies"></div>
+    </div>
+  </div>
+
+    <script>
+    /***********************
+     * Character Selection
+     ***********************/
+    let selectedCharacter = null;
+    const characterSelect = document.getElementById('characterSelect');
+    const playerEl = document.getElementById('playerCharacter');
+    const openingMusic = document.getElementById('openingMusic');
+    const ironManMusic = document.getElementById('ironManMusic');
+    const spiderManMusic = document.getElementById('spiderManMusic');
+    let currentGameMusic = null;
+
+    // Character-specific settings
+    const characterSettings = {
+      'ironman': {
+        width: 120,    // Iron Man dimensions
+        height: 180,   // Iron Man dimensions
+        className: 'ironman'
+      },
+      'spiderman': {
+        width: 60,     // Spider-Man specific dimensions
+        height: 90,    // Spider-Man specific dimensions
+        className: 'spiderman'
+      }
+    };
+
+    // Start playing music when the page loads
+    window.addEventListener('load', function() {
+      openingMusic.play().catch(function(error) {
+        console.log("Audio play failed:", error);
+      });
+    });
+
+    function selectCharacter(character) {
+      selectedCharacter = character;
+      characterSelect.style.display = 'none';
+      // Stop the opening music when character is selected
+      openingMusic.pause();
+      openingMusic.currentTime = 0;
+
+      // Start character-specific music
+      if (character === 'ironman') {
+        ironManMusic.play();
+        currentGameMusic = ironManMusic;
+      } else if (character === 'spiderman') {
+        spiderManMusic.play();
+        currentGameMusic = spiderManMusic;
+      }
+
+      // Remove any existing character class and add the chosen one.
+      playerEl.classList.remove('ironman', 'spiderman');
+      
+      // Apply character-specific settings
+      const settings = characterSettings[character];
+      playerEl.classList.add(settings.className);
+      
+      // Set player physics to match character size
+      player.width = settings.width;
+      player.height = settings.height;
+      
+      // Start the game loop
+      startGame();
+    }
+
+    // Listen for keyboard selection on character select screen
+    document.addEventListener('keydown', function(e) {
+      if (characterSelect.style.display !== 'none') {
+        if (e.key.toLowerCase() === 'i') {
+          selectCharacter('ironman');
+        } else if (e.key.toLowerCase() === 's') {
+          selectCharacter('spiderman');
+        }
+      }
+    });
+
+    /***********************
+     * Initialization
+     ***********************/
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const highScoreDisplay = document.getElementById('highScoreDisplay');
+    const gameOverOverlay = document.getElementById('gameOverOverlay');
+    const finalScoreDisplay = document.getElementById('finalScoreDisplay');
+    const leaderboardList = document.getElementById('leaderboardList');
+    const playAgainButton = document.getElementById('playAgainButton');
+    const gameContainer = document.getElementById('gameContainer');
+
+        // Game settings
+        const gravity = 0.5;
+        const friction = 0.8;
+    const baseJump = -12;  // Increased jump power
+    let score = 0;
+    let highScore = 0;
+    let floorRising = false;
+    let floorLevel = canvas.height; // Start at the bottom of the canvas
+    let floorRiseSpeed = 0.2; // Base rising speed - adjust for difficulty
+
+    // Default player physics object; dimensions will be updated after character select
+        let player = {
+      x: 180, // Starting X coordinate; may adjust after selection
+      y: 450, // Starting Y coordinate
+      width: 80,  // Will be overwritten by selectCharacter()
+      height: 140, // Will be overwritten by selectCharacter()
+            speed: 5,
+            velX: 0,
+            velY: 0,
+            jumping: false
+        };
+
+    let highestPlatformIndex = -1;
+    let absoluteHeight = 0;
+    let currentPlatform = null;
+    let gameOver = false;
+    let firstPlatformRemoved = false;
+
+    // Enemy dimensions (increased size)
+    const enemyWidth = 60;  // Increased from 40
+    const enemyHeight = 80; // Increased from 60
+    
+    // Platform size settings
+    const standardPlatformWidth = 100;
+    const platformWithEnemyWidth = 150; // Wider platforms for enemies
+
+    // Moving platform settings
+    const movingPlatformSpeed = 1;
+    const movingPlatformRange = 60; // Maximum displacement
+
+    // Platforms array
+        let platforms = [];
+    // Create special starting platform
+    let firstPlatform = {
+      id: -1,
+      x: 0,
+      y: canvas.height - 10,
+      width: canvas.width,
+      height: 10,
+      absoluteY: canvas.height - 10,
+      scored: true,
+      standingTime: 0,
+      fallCountdown: Infinity,
+      isFalling: false,
+      fallSpeed: 0,
+      color: '#2E8B57',
+      enemy: null,
+      isFirstPlatform: true,
+      // Moving platform properties
+      isMoving: false,
+      moveDirection: null,
+      originalY: canvas.height - 10,
+      displacement: 0
+    };
+    platforms.push(firstPlatform);
+
+    /***********************
+     * Input Handling
+     ***********************/
+        let keys = [];
+        window.addEventListener('keydown', function(e) {
+            keys[e.keyCode] = true;
+      // Jump on Space (key code 32)
+      if (e.keyCode === 32 && !player.jumping) {
+                player.jumping = true;
+        player.velY = baseJump - Math.abs(player.velX);
+        currentPlatform = null;
+        if (!playerEl.classList.contains('jump')) {
+          playerEl.classList.add('jump');
+          setTimeout(() => {
+            playerEl.classList.remove('jump');
+          }, 300);
+        }
+      }
+      // Shoot upward on "W" (keycode 87) to avoid conflict with selection keys
+      if (e.keyCode === 87) {
+        shootUp();
+            }
+        });
+        window.addEventListener('keyup', function(e) {
+            keys[e.keyCode] = false;
+        });
+
+    // Global keydown for Game Over controls
+    document.addEventListener('keydown', function(e) {
+      if (gameOver) {
+        if (e.key === 'q' || e.key === 'Q') {
+          quitGame();
+        }
+        if (e.key === 'r' || e.key === ' ') {
+          location.reload();
+        }
+      }
+    });
+
+    /***********************
+     * Utility Functions
+     ***********************/
+    function quitGame() {
+      document.body.innerHTML =
+        "<h1 style='color: white; text-align: center; margin-top: 50vh;'>Thanks for playing!</h1>";
+    }
+
+    function getEnemyProbability() {
+      return Math.min(0.05 + Math.floor(score / 200) * 0.01, 0.20);
+    }
+
+    function getFallCountdown() {
+      const baseTime = 5;
+      const minTime = 0.5;
+      const firstThreshold = 100;
+      const secondThreshold = 150;
+      const firstTimeDecrease = 0.5;
+      const secondTimeDecrease = 0.1;
+      const firstDecreaseCount = Math.floor(score / firstThreshold);
+      let newTime = Math.max(baseTime - (firstDecreaseCount * firstTimeDecrease), 1);
+      if (newTime <= 1) {
+        const secondDecreaseCount = Math.floor((score - (firstThreshold * 8)) / secondThreshold);
+        newTime = Math.max(1 - (secondDecreaseCount * secondTimeDecrease), minTime);
+      }
+      return newTime;
+    }
+
+    // Create an enemy for a platform with larger enemy sizes
+    function createEnemy(platform) {
+      let enemyType = Math.random() < 0.5 ? 'Type1' : 'Type2';
+      // For static enemy (Type1), use Thanos; for moving enemy (Type2), use Mysterio for Iron Man and Venom for Spider-Man.
+      if (enemyType === 'Type1') {
+        // Create a DOM element for Thanos (static)
+        const thanosEl = document.createElement('div');
+        thanosEl.classList.add('thanos');
+        gameContainer.appendChild(thanosEl);
+        return {
+          type: enemyType,
+          x: platform.x + (platform.width / 2) - (enemyWidth / 2),
+          y: platform.y - enemyHeight,
+          width: enemyWidth,
+          height: enemyHeight,
+          direction: 1,
+          speed: 0,
+          element: thanosEl
+        };
+      } else {
+        const movingEnemyEl = document.createElement('div');
+        // If Iron Man, use Mysterio; if Spider-Man, use Venom
+        const enemyClass = selectedCharacter === 'spiderman' ? 'venom' : 'mysterio';
+        movingEnemyEl.classList.add(enemyClass);
+        gameContainer.appendChild(movingEnemyEl);
+        return {
+          type: enemyType,
+          x: platform.x + (platform.width / 2) - (enemyWidth / 2),
+          y: platform.y - enemyHeight,
+          width: enemyWidth,
+          height: enemyHeight,
+          direction: 1,
+          speed: 1,
+          element: movingEnemyEl
+        };
+      }
+    }
+
+    function updateScore(platformId) {
+      if (platformId > highestPlatformIndex) {
+        let platform = platforms.find(p => p.id === platformId);
+        if (platform && platform.isFirstPlatform) return;
+        const levelsJumped = platformId - highestPlatformIndex;
+        const scoreIncrement = levelsJumped * 10;
+        const newScore = score + scoreIncrement;
+        
+        if (newScore % 100 === 0 && platform) {
+          platform.isMilestone = true;
+        }
+        score = newScore;
+        highestPlatformIndex = platformId;
+        scoreDisplay.textContent = "Score: " + score;
+        if (score > highScore) {
+          highScore = score;
+          highScoreDisplay.textContent = "High Score: " + highScore;
+        }
+        if (currentPlatform) {
+          currentPlatform.fallCountdown = getFallCountdown();
+        }
+        flashScoreDisplay();
+      }
+    }
+
+    function flashScoreDisplay() {
+      const oldColor = scoreDisplay.style.color;
+      scoreDisplay.style.color = "#FFFF00";
+      setTimeout(() => {
+        scoreDisplay.style.color = oldColor;
+      }, 300);
+    }
+
+    function getPlatformColor(platform) {
+      if (platform.isFalling) return '#8B4513';
+      if (platform === currentPlatform) {
+        let timeRatio = platform.standingTime / (platform.fallCountdown * 60);
+        if (timeRatio < 0.33) return '#593A0A';
+        else if (timeRatio < 0.66) return '#704214';
+        else return '#8B4513';
+      }
+      
+      // Special color for moving platforms
+      if (platform.isMoving) {
+        // Use different colors for up/down moving platforms
+        return platform.moveDirection === 'up' ? '#4286f4' : '#f47142';
+      }
+      
+      return platform.isFirstPlatform ? '#2E8B57' : '#593A0A';
+    }
+
+        // Replace the existing isValidPlatformPosition function with this improved version
+    function isValidPlatformPosition(newY, platforms) {
+      // Minimum distance between platforms in Y direction
+      const minDistance = 100;
+      
+      // Check against all existing platforms
+      for (let i = 0; i < platforms.length; i++) {
+        const platform = platforms[i];
+        
+        // If platforms are at exactly the same height or too close together
+        if (Math.abs(platform.y - newY) < minDistance) {
+          return false;
+        }
+        
+        // Strict check: consider platforms at the same height (±10px) invalid
+        // This ensures no platforms share the same height, even if they're far apart horizontally
+        if (Math.abs(platform.y - newY) <= 10) {
+          return false;
+        }
+      }
+      
+      // No conflicts found
+      return true;
+    }
+
+    function updateLeaderboard(finalScore) {
+      let leaderboard = JSON.parse(localStorage.getItem("leaderboard") || "[]");
+      leaderboard.push(finalScore);
+      leaderboard.sort((a, b) => b - a);
+      leaderboard = leaderboard.slice(0, 5);
+      localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+      return leaderboard;
+    }
+
+    function showGameOverOverlay() {
+      gameOver = true;
+      // Stop the game music when game is over
+      if (currentGameMusic) {
+        currentGameMusic.pause();
+        currentGameMusic.currentTime = 0;
+      }
+      
+      // Play game over sound
+      const gameOverSound = document.getElementById('gameOverSound');
+      gameOverSound.currentTime = 0;
+      gameOverSound.play().catch(e => console.log("Game over sound failed:", e));
+      
+      const leaderboard = updateLeaderboard(score);
+      finalScoreDisplay.textContent = "Your Score: " + score;
+      leaderboardList.innerHTML = "";
+      // Add a header for the top 5
+      const header = document.createElement("h3");
+      header.textContent = "Top 5 Best Scores";
+      header.style.marginBottom = "10px";
+      if (!leaderboardList.previousElementSibling || leaderboardList.previousElementSibling.tagName !== 'H3') {
+        leaderboardList.before(header);
+      }
+      leaderboard.forEach((s) => {
+        let li = document.createElement("li");
+        li.style.fontSize = "24px";
+        li.style.marginBottom = "5px";
+        li.textContent = s;
+        leaderboardList.appendChild(li);
+      });
+      gameOverOverlay.style.display = "block";
+    }
+
+    playAgainButton.addEventListener("click", function() {
+      location.reload();
+    });
+
+    // Add audio elements for shooting sounds
+    const blastSound = document.getElementById('blastSound');
+    const webSound = document.getElementById('webSound');
+
+    function shootUp() {
+      const bullet = document.createElement('div');
+      bullet.classList.add('bullet', 'shootUp');
+      
+      // Add character-specific style
+      if (selectedCharacter === 'ironman') {
+        bullet.classList.add('blast');
+        blastSound.currentTime = 0;
+        blastSound.play().catch(e => console.log("Audio play failed:", e));
+      } else if (selectedCharacter === 'spiderman') {
+        bullet.classList.add('web');
+        webSound.currentTime = 0;
+        webSound.play().catch(e => console.log("Audio play failed:", e));
+      }
+
+      const rect = playerEl.getBoundingClientRect();
+      const containerRect = gameContainer.getBoundingClientRect();
+      const startX = rect.left - containerRect.left + (rect.width / 2) - 3;
+      const startY = rect.top - containerRect.top;
+      
+      bullet.style.left = startX + 'px';
+      bullet.style.top = startY + 'px';
+      gameContainer.appendChild(bullet);
+      
+      // Check for bullet-enemy collisions during animation
+      const checkCollisions = setInterval(() => {
+        const bulletRect = bullet.getBoundingClientRect();
+        
+        platforms.forEach(platform => {
+          if (platform.enemy && platform.enemy.element) {
+            const enemyRect = platform.enemy.element.getBoundingClientRect();
+            
+            // Check if bullet hits enemy
+            if (bulletRect.right > enemyRect.left &&
+                bulletRect.left < enemyRect.right &&
+                bulletRect.bottom > enemyRect.top &&
+                bulletRect.top < enemyRect.bottom) {
+              
+              // Remove the enemy
+              platform.enemy.element.remove();
+              platform.enemy = null;
+              
+              // Remove the bullet
+              clearInterval(checkCollisions);
+              bullet.remove();
+            }
+          }
+        });
+      }, 16);
+      
+      bullet.addEventListener('animationend', () => {
+        clearInterval(checkCollisions);
+        bullet.remove();
+      });
+    }
+
+    /***********************
+     * Platform Initialization
+     ***********************/
+    for (let i = 0; i < 10; i++) {
+      const platformScore = (i + 1) * 10;
+      const milestoneValue = Math.floor(i / 10) * 100 + 100;
+      
+      // Find a valid platform position
+      let newY;
+      let attempts = 0;
+      const maxAttempts = 100;
+
+      // Base position for first platform
+      if (i === 0) {
+        newY = canvas.height - 200;
+      } else {
+        // For subsequent platforms, place them at a fixed distance above the previous one
+        newY = platforms[platforms.length - 1].y - 150; // Fixed distance of 150px
+        
+        // Try to find a valid position
+        while (!isValidPlatformPosition(newY, platforms) && attempts < maxAttempts) {
+          // If invalid, adjust the position slightly and try again
+          newY -= 10;
+          attempts++;
+        }
+      }
+      
+      // Make sure platforms don't go above the screen
+      newY = Math.max(newY, 50);
+      
+      // Decide if this platform will have an enemy (keep original probability)
+      const willHaveEnemy = Math.random() < getEnemyProbability();
+      
+      // Remove special case for third platform
+      const willHaveRealityStone = !willHaveEnemy && Math.random() < 0.01;
+      
+      // Only consider Space Stone if no enemy and no Reality Stone
+      const willHaveSpaceStone = !willHaveEnemy && !willHaveRealityStone && Math.random() < 0.02;
+      
+      // Add Time Stone with 4% chance if no enemy and no other stones
+      const willHaveTimeStone = !willHaveEnemy && !willHaveRealityStone && !willHaveSpaceStone && Math.random() < 0.04;
+      
+      // Decide if this platform will move
+      const movingRandom = Math.random() * 100;
+      const isMoving = movingRandom < 6;
+      const moveDirection = movingRandom < 3 ? 'up' : 'down';
+      
+      let platform = {
+        id: i,
+        x: Math.random() * (canvas.width - (willHaveEnemy ? platformWithEnemyWidth : standardPlatformWidth)),
+        y: newY,
+        width: willHaveEnemy ? platformWithEnemyWidth : standardPlatformWidth,
+        height: 10,
+        absoluteY: newY,
+        scored: false,
+        standingTime: 0,
+        fallCountdown: getFallCountdown(),
+        isFalling: false,
+        fallSpeed: 0,
+        color: '#593A0A',
+        scoreValue: platformScore,
+        isMilestone: (i + 1) % 10 === 0,
+        milestoneValue: milestoneValue,
+        enemy: null,
+        isMoving: isMoving,
+        moveDirection: isMoving ? moveDirection : null,
+        originalY: newY,
+        displacement: 0,
+        spaceStone: null,
+        realityStone: null,
+        timeStone: null
+      };
+      
+      // Create enemy if platform should have one
+      if (willHaveEnemy) {
+        platform.enemy = createEnemy(platform);
+      }
+      
+      // Create Reality Stone if platform should have one
+      if (willHaveRealityStone) {
+        console.log("Creating Reality Stone on platform", i);
+        const stone = document.createElement('div');
+        stone.className = 'consumable reality-stone';
+        stone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+        stone.style.top = (platform.y - 30) + 'px';
+        gameContainer.appendChild(stone);
+        platform.realityStone = stone;
+      }
+      
+      // Create Space Stone if platform should have one (and has no enemy or Reality Stone)
+      if (willHaveSpaceStone) {
+        const stone = document.createElement('div');
+        stone.className = 'consumable space-stone';
+        stone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+        stone.style.top = (platform.y - 30) + 'px';
+        gameContainer.appendChild(stone);
+        platform.spaceStone = stone;
+      }
+      
+      // Create Time Stone if platform should have one
+      if (willHaveTimeStone) {
+        console.log("Creating Time Stone on platform", i);
+        const stone = document.createElement('div');
+        stone.className = 'consumable time-stone';
+        stone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+        stone.style.top = (platform.y - 30) + 'px';
+        gameContainer.appendChild(stone);
+        platform.timeStone = stone;
+      }
+      
+      platforms.push(platform);
+    }
+
+    function cleanupEnemies() {
+      // Get all enemy elements
+      const enemies = document.querySelectorAll('.thanos, .mysterio, .venom');
+      const containerRect = gameContainer.getBoundingClientRect();
+      
+      // Check each enemy's position
+      enemies.forEach(enemy => {
+        const rect = enemy.getBoundingClientRect();
+        
+        // If enemy is below the game container or above the visible area
+        if (rect.top > containerRect.bottom || rect.bottom < containerRect.top) {
+          // Find the platform this enemy belongs to
+          const platform = platforms.find(p => p.enemy && p.enemy.element === enemy);
+          if (platform) {
+            // Clear the enemy reference from the platform
+            platform.enemy = null;
+          }
+          // Remove the enemy element
+          enemy.remove();
+        }
+      });
+    }
+
+    function recyclePlatform(platform) {
+      // Clean up existing elements
+      if (platform.enemy && platform.enemy.element) {
+        platform.enemy.element.remove();
+      }
+      if (platform.spaceStone) {
+        platform.spaceStone.remove();
+      }
+      if (platform.realityStone) {
+        platform.realityStone.remove();
+      }
+
+      // Call cleanupEnemies to ensure no stray enemies remain
+      cleanupEnemies();
+
+      // Find the highest platform
+      let highestPlatform = platforms[0];
+      for (let i = 1; i < platforms.length; i++) {
+        if (platforms[i].y < highestPlatform.y) {
+          highestPlatform = platforms[i];
+        }
+      }
+
+      // Place the recycled platform at a fixed distance above the highest one
+      let newY = highestPlatform.y - 150; // Fixed distance of 150px
+      let attempts = 0;
+
+      // Make sure position is valid
+      while (!isValidPlatformPosition(newY, platforms) && attempts < 50) {
+        newY -= 10;
+        attempts++;
+      }
+
+      // Ensure the platform is not above the visible area
+      newY = Math.max(newY, 30);
+      
+      // Decide if recycled platform will have an enemy
+      const willHaveEnemy = Math.random() < getEnemyProbability();
+      
+      // Only consider powerups if no enemy
+      const willHaveSpaceStone = !willHaveEnemy && Math.random() < 0.04;
+      const willHaveTimeStone = !willHaveEnemy && !willHaveSpaceStone && Math.random() < 0.04;
+      const willHaveRealityStone = !willHaveEnemy && !willHaveSpaceStone && !willHaveTimeStone && Math.random() < 0.01; // 1% chance
+      
+      // Decide if this recycled platform will move
+      const movingRandom = Math.random() * 100;
+      const isMoving = movingRandom < 6;
+      const moveDirection = movingRandom < 3 ? 'up' : 'down';
+      
+      // Update platform properties
+      platform.y = newY;
+      platform.width = willHaveEnemy ? platformWithEnemyWidth : standardPlatformWidth;
+      platform.x = Math.random() * (canvas.width - platform.width);
+      platform.absoluteY = platform.absoluteY - canvas.height - platform.height;
+      platform.scored = false;
+      platform.standingTime = 0;
+      platform.isFalling = false;
+      platform.fallSpeed = 0;
+      platform.color = '#593A0A';
+      
+      // Update ID and score values
+      let maxId = Math.max(...platforms.map(p => p.id));
+      platform.id = maxId + 1;
+      platform.scoreValue = (platform.id + 1) * 10;
+      platform.isMilestone = (platform.id + 1) % 10 === 0;
+      platform.milestoneValue = Math.floor(platform.id / 10) * 100 + 100;
+      
+      // Update moving platform properties
+      platform.isMoving = isMoving;
+      platform.moveDirection = isMoving ? moveDirection : null;
+      platform.originalY = newY;
+      platform.displacement = 0;
+      
+      // Create new enemy if platform should have one
+      if (willHaveEnemy) {
+        platform.enemy = createEnemy(platform);
+      } else {
+        platform.enemy = null;
+      }
+
+      // Create new Space Stone if platform should have one (and has no enemy)
+      if (willHaveSpaceStone) {
+        const stone = document.createElement('div');
+        stone.className = 'consumable space-stone';
+        stone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+        stone.style.top = (platform.y - 30) + 'px';
+        gameContainer.appendChild(stone);
+        platform.spaceStone = stone;
+      } else {
+        platform.spaceStone = null;
+      }
+
+      // Create new Time Stone if platform should have one
+      if (willHaveTimeStone) {
+        const stone = document.createElement('div');
+        stone.className = 'consumable time-stone';
+        stone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+        stone.style.top = (platform.y - 30) + 'px';
+        gameContainer.appendChild(stone);
+        platform.timeStone = stone;
+      } else {
+        platform.timeStone = null;
+      }
+
+      // Create new Reality Stone if platform should have one
+      if (willHaveRealityStone) {
+        console.log("Creating Reality Stone...");
+        const stone = document.createElement('div');
+        stone.className = 'consumable reality-stone';
+        stone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+        stone.style.top = (platform.y - 30) + 'px';
+        gameContainer.appendChild(stone);
+        platform.realityStone = stone;
+      } else {
+        platform.realityStone = null;
+      }
+      
+      return platform;
+    }
+
+    // Precise center-to-center collision detection
+    function isColliding(obj1, obj2) {
+      if (!obj2 || obj2.width === undefined || obj2.height === undefined) {
+        return false;
+      }
+      // Calculate center points
+      const obj1CenterX = obj1.x + (obj1.width / 2);
+      const obj1CenterY = obj1.y + (obj1.height / 2);
+      const obj2CenterX = obj2.x + (obj2.width / 2);
+      const obj2CenterY = obj2.y + (obj2.height / 2);
+      
+      // Define collision box size (smaller than actual sprites for more precise collision)
+      const collisionWidth = 30;  // Half the enemy width
+      const collisionHeight = 40; // Half the enemy height
+      
+      // Check if centers are within the collision box
+      return Math.abs(obj1CenterX - obj2CenterX) < collisionWidth &&
+             Math.abs(obj1CenterY - obj2CenterY) < collisionHeight;
+    }
+
+    // Calculate optimal vertical gap between platforms
+    function getOptimalVerticalGap() {
+      // Fixed minimum gap based on character height
+      const minGap = 120; // Set a reliable minimum gap
+      
+      // Fixed maximum gap based on jump capability
+      const maxGap = 180; // Set a reliable maximum gap that's always jumpable
+      
+      // Return a value within this range
+      return minGap + Math.random() * (maxGap - minGap);
+    }
+
+    // Check if a platform position is valid
+    function isValidPlatformPosition(newY, existingPlatforms) {
+      // Fixed minimum distance between any two platforms
+      const minDistance = 100;
+      
+      // Check against all existing platforms
+      for (let i = 0; i < existingPlatforms.length; i++) {
+        const platform = existingPlatforms[i];
+        
+        // If platforms are too close together
+        if (Math.abs(platform.y - newY) < minDistance) {
+          return false;
+        }
+      }
+      
+      // No conflicts found
+      return true;
+    }
+
+    /***********************
+     * Game Loop
+     ***********************/
+    let lastTime = 0;
+    let isInvincible = false;
+    let invincibilityTimer = null;
+    let powerupActive = false;
+    let powerupDuration = 7000; // Changed to 7 seconds
+    let powerupSpawnInterval = 20000; // 20 seconds
+    let lastPowerupSpawn = 0;
+    let isGamePaused = false; // Add this line
+
+    let hasTimeStone = false;
+    const superJumpVelocity = -30; // Much stronger than normal jump
+
+    function updateGame(timestamp) {
+      if (!gameOver && !isGamePaused) { // Add isGamePaused check here
+        if (keys[39]) {
+          if (player.velX < player.speed) player.velX++;
+        }
+        if (keys[37]) {
+          if (player.velX > -player.speed) player.velX--;
+        }
+            player.velX *= friction;
+            player.velY += gravity;
+            player.x += player.velX;
+            player.y += player.velY;
+
+        // Update moving platforms
+        platforms.forEach(platform => {
+          if (platform.isMoving && !platform.isFalling) {
+            // Calculate movement based on direction and displacement
+            const speed = platform.moveDirection === 'up' ? -movingPlatformSpeed : movingPlatformSpeed;
+            
+            // Update displacement
+            platform.displacement += speed;
+            
+            // Check if we've reached the max displacement
+            if (Math.abs(platform.displacement) >= movingPlatformRange) {
+              // Reverse direction when reaching limits
+              platform.moveDirection = platform.moveDirection === 'up' ? 'down' : 'up';
+            }
+            
+            // Update platform position
+            platform.y = platform.originalY + platform.displacement;
+            
+            // If player is on this platform, move them with it
+            if (platform === currentPlatform && !player.jumping) {
+              player.y += speed;
+            }
+            
+            // Update enemy position if present
+            if (platform.enemy) {
+              platform.enemy.y = platform.y - enemyHeight;
+            }
+          }
+        });
+
+        if (player.jumping || Math.abs(player.velX) > 0.1) {
+          if (currentPlatform) {
+            if (player.x + player.width < currentPlatform.x || player.x > currentPlatform.x + currentPlatform.width) {
+              currentPlatform.standingTime = 0;
+              currentPlatform = null;
+            } else if (player.jumping) {
+              currentPlatform.standingTime = 0;
+              currentPlatform = null;
+            }
+          } else {
+            currentPlatform = null;
+          }
+        }
+
+        absoluteHeight += player.velY < 0 ? -player.velY : 0;
+
+        if (score >= 30 && !firstPlatformRemoved) {
+          platforms = platforms.filter(p => !p.isFirstPlatform);
+          firstPlatformRemoved = true;
+        }
+
+        let scrollAmount = handleScrolling();
+
+        platforms.forEach(platform => {
+          if (platform.isFalling) {
+            platform.fallSpeed += 0.1;
+            platform.y += platform.fallSpeed;
+            platform.isMoving = false; // Stop movement when falling
+            if (platform.enemy) {
+              platform.enemy.y += platform.fallSpeed;
+            }
+            if (platform.spaceStone) {
+              platform.spaceStone.style.top = (platform.y - 30) + 'px';
+            }
+          }
+
+          if (platform.enemy) {
+            platform.enemy.y = platform.y - enemyHeight;
+            if (platform.enemy.type === 'Type2') {
+              platform.enemy.x += platform.enemy.speed * platform.enemy.direction;
+              if (platform.enemy.x <= platform.x || (platform.enemy.x + platform.enemy.width) >= (platform.x + platform.width)) {
+                platform.enemy.direction *= -1;
+                platform.enemy.x = Math.max(platform.x, Math.min(platform.enemy.x, platform.x + platform.width - platform.enemy.width));
+              }
+            } else {
+              platform.enemy.x = platform.x + (platform.width / 2) - (enemyWidth / 2);
+            }
+            if (platform.enemy.element) {
+              platform.enemy.element.style.left = platform.enemy.x + 'px';
+              platform.enemy.element.style.top = platform.enemy.y + 'px';
+            }
+          }
+
+          // Update Space Stone position
+          if (platform.spaceStone) {
+            platform.spaceStone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+            platform.spaceStone.style.top = (platform.y - 30) + 'px';
+          }
+        });
+
+        if (player.x >= canvas.width - player.width)
+                player.x = canvas.width - player.width;
+        else if (player.x <= 0)
+                player.x = 0;
+
+        if (score >= 500 && !floorRising) {
+          // Activate rising floor when score reaches 500
+          floorRising = true;
+          
+          // Create a warning message
+          const warningText = document.createElement('div');
+          warningText.className = 'effect-text';
+          warningText.textContent = 'DANGER! FLOOR IS RISING!';
+          warningText.style.color = '#ff3300';
+          gameContainer.appendChild(warningText);
+          
+          // Remove the warning after 3 seconds
+          setTimeout(() => {
+            warningText.remove();
+          }, 3000);
+        }
+
+        if (floorRising) {
+          // Calculate how much the floor should rise based on score
+          // Higher scores make it rise faster, but cap at a maximum speed
+          const baseSpeed = floorRiseSpeed;
+          const scoreMultiplier = Math.min(1 + Math.floor((score - 500) / 200) * 0.1, 2.0); // Cap at 2x speed
+          const riseAmount = baseSpeed * scoreMultiplier;
+          
+          // Move the floor up
+          floorLevel -= riseAmount;
+          
+          // Check if player has hit the rising floor
+          if (player.y + player.height > floorLevel) {
+            showGameOverOverlay();
+            gameOver = true;
+          }
+        }
+
+        if (player.y > canvas.height && score >= 30) {
+          showGameOverOverlay();
+          gameOver = true;
+        } else if (player.y > canvas.height) {
+                player.y = canvas.height - player.height;
+          player.velY = baseJump;
+                player.jumping = false;
+            }
+
+        let onPlatform = false;
+            platforms.forEach(platform => {
+                if (
+            !platform.isFalling &&
+                    player.x < platform.x + platform.width &&
+                    player.x + player.width > platform.x &&
+            player.y + player.height >= platform.y &&
+            player.y + player.height <= platform.y + platform.height + Math.abs(player.velY) &&
+                    player.velY >= 0
+                ) {
+                    player.jumping = false;
+                    player.velY = 0;
+                    player.y = platform.y - player.height;
+            onPlatform = true;
+            if (currentPlatform !== platform) {
+              if (currentPlatform) currentPlatform.standingTime = 0;
+              currentPlatform = platform;
+              currentPlatform.standingTime = 0;
+            }
+            if (!platform.isFirstPlatform && !platform.scored) {
+              updateScore(platform.id);
+              platform.scored = true;
+            }
+            if (Math.abs(player.velX) < 0.5 && !player.jumping) {
+              // Only increment standingTime if the platform doesn't have a Reality Stone
+              if (!platform.realityStone) {
+                platform.standingTime++;
+                if (platform.standingTime >= platform.fallCountdown * 60) {
+                  platform.isFalling = true;
+                  platform.fallSpeed = 0.5;
+                  currentPlatform = null;
+                }
+              }
+            } else {
+              platform.standingTime = 0;
+            }
+          }
+        });
+        if (!onPlatform && player.velY > 0) {
+          currentPlatform = null;
+          player.jumping = true;
+        }
+
+        // Check for enemy collisions only if not invincible
+        platforms.forEach(platform => {
+          if (platform.enemy && !isInvincible && isColliding(player, platform.enemy)) {
+            showGameOverOverlay();
+            gameOver = true;
+          }
+        });
+
+        // Check for Space Stone collection
+        platforms.forEach(platform => {
+          if (platform.spaceStone && !platform.isFalling) {
+            const stone = platform.spaceStone;
+            const stoneRect = stone.getBoundingClientRect();
+            const playerRect = playerEl.getBoundingClientRect();
+            
+            if (
+              playerRect.right > stoneRect.left &&
+              playerRect.left < stoneRect.right &&
+              playerRect.bottom > stoneRect.top &&
+              playerRect.top < stoneRect.bottom
+            ) {
+              collectPowerup(stone);
+              stone.remove(); // Ensure stone is removed from DOM
+              platform.spaceStone = null; // Clear reference
+            }
+          }
+        });
+
+        // Check for Time Stone collection - with improved handling
+        platforms.forEach(platform => {
+          if (platform.timeStone && !platform.isFalling) {
+            const stone = platform.timeStone;
+            const stoneRect = stone.getBoundingClientRect();
+            const playerRect = playerEl.getBoundingClientRect();
+            
+            if (
+              playerRect.right > stoneRect.left &&
+              playerRect.left < stoneRect.right &&
+              playerRect.bottom > stoneRect.top &&
+              playerRect.top < stoneRect.bottom
+            ) {
+              console.log("Time Stone collected!");
+              // Remove the stone first to prevent multiple collisions
+              stone.remove();
+              platform.timeStone = null;
+              
+              // Force position reset to prevent sticking to platform
+              if (currentPlatform === platform) {
+                player.y = platform.y - player.height - 1; // Move slightly above platform
+              }
+              
+              // Activate the stone effect with slight delay
+              setTimeout(() => {
+                activateTimeStone();
+              }, 50);
+            }
+          }
+        });
+
+        // Check for Reality Stone collection
+        platforms.forEach(platform => {
+          if (platform.realityStone && !platform.isFalling) {
+            // Update Reality Stone position
+            platform.realityStone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+            platform.realityStone.style.top = (platform.y - 30) + 'px';
+
+            const stoneRect = platform.realityStone.getBoundingClientRect();
+            const playerRect = playerEl.getBoundingClientRect();
+            
+            if (
+              playerRect.right > stoneRect.left &&
+              playerRect.left < stoneRect.right &&
+              playerRect.bottom > stoneRect.top &&
+              playerRect.top < stoneRect.bottom
+            ) {
+              console.log("Reality Stone found!");
+              const effectText = document.createElement('div');
+              effectText.className = 'effect-text';
+              effectText.textContent = 'ENTERING REALITY!';
+              effectText.style.color = '#ff0000';
+              gameContainer.appendChild(effectText);
+              
+              platform.realityStone.remove();
+              platform.realityStone = null;
+              
+              // Pause the game and start shooter after text effect
+              setTimeout(() => {
+                effectText.remove();
+                startFPSGame();
+              }, 1000);
+            }
+          }
+        });
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      platforms.forEach(platform => {
+        platform.color = getPlatformColor(platform);
+        ctx.fillStyle = platform.color;
+        ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+        
+        // Add highlight for platforms with enemies
+        if (platform.enemy) {
+          ctx.strokeStyle = 'orange';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
+        }
+        
+        // Add arrow indicators for moving platforms
+        if (platform.isMoving && !platform.isFalling) {
+          ctx.fillStyle = "white";
+          ctx.beginPath();
+          
+          if (platform.moveDirection === 'up') {
+            // Draw up arrow
+            const arrowX = platform.x + platform.width / 2;
+            const arrowY = platform.y + platform.height + 5;
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(arrowX - 5, arrowY + 5);
+            ctx.lineTo(arrowX + 5, arrowY + 5);
+          } else {
+            // Draw down arrow
+            const arrowX = platform.x + platform.width / 2;
+            const arrowY = platform.y - 5;
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(arrowX - 5, arrowY - 5);
+            ctx.lineTo(arrowX + 5, arrowY - 5);
+          }
+          
+          ctx.fill();
+        }
+        
+        // Only draw milestone score box if it's not score 100
+        if (platform.isMilestone && platform.milestoneValue !== 100) {
+          drawScoreBox(platform.x + platform.width / 2 - 15, platform.y - 15, platform.milestoneValue);
+        }
+        if (platform === currentPlatform && !platform.isFalling) {
+          let timeRatio = platform.standingTime / (platform.fallCountdown * 60);
+          let countdownWidth = platform.width * (1 - timeRatio);
+          ctx.fillStyle = 'green';
+          ctx.fillRect(platform.x, platform.y - 5, countdownWidth, 3);
+        }
+      });
+
+      // Draw the rising floor before the player
+      drawRisingFloor();
+
+      // Update player element position
+      playerEl.style.left = player.x + "px";
+      playerEl.style.top = player.y + "px";
+
+      ctx.fillStyle = 'white';
+      ctx.font = "20px Arial";
+      ctx.textAlign = "left";
+      ctx.fillText("Score: " + score, 20, 30);
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 1;
+      ctx.strokeText("Score: " + score, 20, 30);
+
+      ctx.textAlign = "right";
+      ctx.fillText("High Score: " + highScore, canvas.width - 20, 30);
+      ctx.strokeText("High Score: " + highScore, canvas.width - 20, 30);
+
+            requestAnimationFrame(updateGame);
+        }
+
+    function drawScoreBox(x, y, scoreValue) {
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(x, y, 30, 20);
+      ctx.strokeStyle = '#593A0A';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, 30, 20);
+      ctx.beginPath();
+      ctx.moveTo(x, y + 7);
+      ctx.lineTo(x + 30, y + 7);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, y + 14);
+      ctx.lineTo(x + 30, y + 14);
+      ctx.stroke();
+      ctx.fillStyle = 'white';
+      ctx.font = "12px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(scoreValue, x + 15, y + 14);
+      ctx.textAlign = "start";
+    }
+
+    // Preload background image
+    const backgroundImg = new Image();
+    backgroundImg.src = "Titan_background.png";
+    backgroundImg.onload = function() {
+      console.log("Background loaded.");
+      highScore = parseInt(localStorage.getItem("highScore") || "0");
+      highScoreDisplay.textContent = "High Score: " + highScore;
+    };
+    backgroundImg.onerror = function() {
+      console.error("Background image failed to load");
+      gameContainer.style.background = "linear-gradient(to bottom, #87CEEB, #1C2951)";
+      highScore = parseInt(localStorage.getItem("highScore") || "0");
+      highScoreDisplay.textContent = "High Score: " + highScore;
+    };
+
+    // Preload Space Stone image
+    const spaceStoneImg = new Image();
+    spaceStoneImg.src = "space_stone.png";
+    spaceStoneImg.onload = function() {
+      console.log("Space Stone image loaded successfully");
+    };
+    spaceStoneImg.onerror = function() {
+      console.error("Space Stone image failed to load");
+      // Fallback styling if image fails to load
+      const spaceStoneElements = document.querySelectorAll('.space-stone');
+      spaceStoneElements.forEach(element => {
+        element.style.background = 'radial-gradient(circle, #00ffff 0%, #0088ff 50%, #0000ff 100%)';
+        element.style.borderRadius = '50%';
+        element.style.boxShadow = '0 0 10px #00ffff, 0 0 20px #00ffff';
+      });
+    };
+
+    // Preload Time Stone image
+    const timeStoneImg = new Image();
+    timeStoneImg.src = "time_stone.png";
+    timeStoneImg.onload = function() {
+      console.log("Time Stone image loaded successfully");
+    };
+    timeStoneImg.onerror = function() {
+      console.error("Time Stone image failed to load");
+      // Fallback styling if image fails to load
+      const timeStoneElements = document.querySelectorAll('.time-stone');
+      timeStoneElements.forEach(element => {
+        element.style.background = 'radial-gradient(circle, #00ff00 0%, #008800 50%, #005500 100%)';
+        element.style.borderRadius = '50%';
+        element.style.boxShadow = '0 0 10px #00ff00, 0 0 20px #00ff00';
+      });
+    };
+
+    // Add GAME_CONSTANTS object
+    const GAME_CONSTANTS = {
+      GRAVITY: gravity,          // Using the existing gravity value
+      BASE_JUMP: baseJump        // Using the existing baseJump value
+    };
+
+    function startGame() {
+      highScore = parseInt(localStorage.getItem("highScore") || "0");
+      highScoreDisplay.textContent = "High Score: " + highScore;
+      // Start the game loop
+      requestAnimationFrame(updateGame);
+    }
+
+    /***********************
+     * Audio Control
+     ***********************/
+    let isMuted = false;
+    const muteButton = document.getElementById('muteButton');
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      muteButton.classList.toggle('muted');
+      
+      // Mute/unmute all audio elements
+      [openingMusic, ironManMusic, spiderManMusic, blastSound, webSound].forEach(audio => {
+        if (audio) {
+          audio.muted = isMuted;
+        }
+      });
+    }
+
+    // Add click handler for mute button
+    muteButton.addEventListener('click', toggleMute);
+
+    // Add keyboard shortcut for mute (M key)
+    document.addEventListener('keydown', function(e) {
+      if (e.key.toLowerCase() === 'm') {
+        toggleMute();
+      }
+    });
+
+    function collectPowerup(stone) {
+        if (!powerupActive) {
+            powerupActive = true;
+            isInvincible = true;
+            collectSound.currentTime = 0;
+            collectSound.play().catch(e => console.log('Audio play failed:', e));
+            
+            // Create explosion effect
+            createExplosion(stone);
+            
+            // Show effect text
+            const effectText = document.createElement('div');
+            effectText.className = 'effect-text';
+            effectText.textContent = 'INVINCIBLE!';
+            gameContainer.appendChild(effectText);
+            
+            // Show countdown
+            const countdown = document.createElement('div');
+            countdown.className = 'effect-countdown';
+            gameContainer.appendChild(countdown);
+            
+            let timeLeft = powerupDuration / 1000;
+            countdown.textContent = timeLeft;
+            
+            const countdownInterval = setInterval(() => {
+                timeLeft--;
+                if (timeLeft >= 0) {
+                    countdown.textContent = timeLeft;
+                }
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    countdown.remove();
+                    effectText.remove();
+                }
+            }, 1000);
+            
+            // Remove stone and reset powerup after duration
+            stone.remove();
+
+            // Clear any existing timer
+            if (invincibilityTimer) {
+                clearTimeout(invincibilityTimer);
+            }
+
+            // Set new timer
+            invincibilityTimer = setTimeout(() => {
+                powerupActive = false;
+                isInvincible = false;
+                // Add a flash effect when invincibility ends
+                const flashEffect = document.createElement('div');
+                flashEffect.className = 'effect-text';
+                flashEffect.textContent = 'INVINCIBILITY ENDED';
+                flashEffect.style.color = '#ff4444';
+                gameContainer.appendChild(flashEffect);
+                setTimeout(() => flashEffect.remove(), 1000);
+            }, powerupDuration);
+
+            // Add visual effect to player during invincibility
+            playerEl.style.animation = 'invincible-flash 0.5s infinite alternate';
+        }
+    }
+
+    function createExplosion(stone) {
+        const particles = 20;
+        for (let i = 0; i < particles; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'explosion-particle';
+            particle.style.left = stone.offsetLeft + 15 + 'px';
+            particle.style.top = stone.offsetTop + 15 + 'px';
+            particle.style.transform = `rotate(${Math.random() * 360}deg)`;
+            gameContainer.appendChild(particle);
+            
+            setTimeout(() => {
+                particle.remove();
+            }, 1000);
+        }
+    }
+
+    function updatePowerups() {
+        const now = Date.now();
+        if (now - lastPowerupSpawn > powerupSpawnInterval) {
+            const stone = createSpaceStone();
+            lastPowerupSpawn = now;
+            
+            const fallInterval = setInterval(() => {
+                const currentTop = parseInt(stone.style.top);
+                stone.style.top = (currentTop + 2) + 'px';
+                
+                // Check collision with player
+                if (checkCollision(stone, player)) {
+                    clearInterval(fallInterval);
+                    collectPowerup(stone);
+                }
+                
+                // Remove if out of bounds
+                if (currentTop > gameContainer.offsetHeight) {
+                    clearInterval(fallInterval);
+                    stone.remove();
+                }
+            }, 16);
+        }
+    }
+
+    // Modify the game loop to include powerup updates
+    function gameLoop() {
+        if (!gameOver) {
+            updatePlayer();
+            updatePlatforms();
+            updateEnemies();
+            updatePowerups();
+            updateProjectiles();
+            requestAnimationFrame(gameLoop);
+        }
+    }
+
+    function createTimeStone(platform) {
+      const stone = document.createElement('div');
+      stone.className = 'time-stone';
+      stone.style.left = (platform.x + platform.width / 2 - 15) + 'px';
+      stone.style.top = (platform.y - 30) + 'px';
+      gameContainer.appendChild(stone);
+      return stone;
+    }
+
+    function activateTimeStone() {
+      // Reset any existing Time Stone state
+      hasTimeStone = false;
+      player.jumping = false;
+      player.velY = 0;
+      
+      // Now activate the Time Stone
+      hasTimeStone = true;
+      collectSound.currentTime = 0;
+      collectSound.play().catch(e => console.log('Audio play failed:', e));
+      
+      // Store original values
+      const oldGravity = gravity;
+      const oldBaseJump = baseJump;
+      
+      // Create visual effect
+      const effectText = document.createElement('div');
+      effectText.className = 'effect-text';
+      effectText.textContent = 'TIME STONE ACTIVE!';
+      effectText.style.color = '#00ff00';
+      gameContainer.appendChild(effectText);
+      
+      // Remove the text after 1 second
+      setTimeout(() => {
+        effectText.remove();
+      }, 1000);
+      
+      // Add visual effect to player
+      playerEl.style.animation = 'super-jump 1s';
+      
+      // Force immediate super jump
+      player.velY = 0; // Reset vertical velocity
+      player.jumping = true; // Set jumping state
+      player.velY = -30; // Apply super jump velocity
+      currentPlatform = null; // Remove platform connection
+      
+      // Add jump animation
+      playerEl.classList.add('jump');
+      setTimeout(() => {
+        playerEl.classList.remove('jump');
+      }, 300);
+      
+      // Temporarily modify gravity and jump power
+      gravity *= 0.5;
+      baseJump *= 1.5;
+      
+      // Show countdown
+      const countdown = document.createElement('div');
+      countdown.className = 'effect-countdown';
+      gameContainer.appendChild(countdown);
+      
+      let timeLeft = 7; // 7 seconds duration
+      countdown.textContent = timeLeft;
+      
+      // Track initial position for score calculation
+      const initialY = player.y;
+      
+      const countdownInterval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft >= 0) {
+          countdown.textContent = timeLeft;
+        }
+        if (timeLeft <= 0) {
+          clearInterval(countdownInterval);
+          countdown.remove();
+          
+          // Reset gravity and jump power
+          gravity = oldGravity;
+          baseJump = oldBaseJump;
+          hasTimeStone = false;
+          
+          // Remove player animation
+          playerEl.style.animation = '';
+          
+          // Show end effect
+          const endEffect = document.createElement('div');
+          endEffect.className = 'effect-text';
+          endEffect.textContent = 'TIME RESTORED';
+          endEffect.style.color = '#ff4444';
+          gameContainer.appendChild(endEffect);
+          setTimeout(() => endEffect.remove(), 1000);
+        }
+      }, 1000);
+      
+      // Calculate score bonus based on height gained
+      const checkHeightInterval = setInterval(() => {
+        if (!hasTimeStone) {
+          clearInterval(checkHeightInterval);
+          const heightGained = Math.max(0, initialY - player.y);
+          const scoreBonus = Math.floor(heightGained / 50) * 10;
+          if (scoreBonus > 0) {
+            score += scoreBonus;
+            scoreDisplay.textContent = "Score: " + score;
+            
+            // Show bonus score
+            const bonusText = document.createElement('div');
+            bonusText.className = 'effect-text';
+            bonusText.textContent = `+${scoreBonus} POINTS!`;
+            bonusText.style.color = '#00ff00';
+            bonusText.style.top = '150px';
+            gameContainer.appendChild(bonusText);
+            setTimeout(() => bonusText.remove(), 1000);
+          }
+        }
+      }, 100);
+    }
+
+    // Add the FPS game logic in the script section
+    let fpsScore = 0;
+    let fpsGameActive = false;
+    let fpsEnemies = [];
+    let fpsProjectiles = [];
+    let fpsStartTime;
+    let fpsGameLoop;
+
+    let cursorX = 50; // Center of screen
+    let cursorY = 50; // Center of screen
+    const cursorSpeed = 5; // Increased speed for more responsive movement
+
+    function updateFPSGame() {
+      if (!fpsGameActive) return;
+      
+      // Update cursor position
+      const crosshair = document.getElementById('crosshair');
+      crosshair.style.left = `${cursorX}%`;
+      crosshair.style.top = `${cursorY}%`;
+      
+      // Update enemies with increased speed
+      fpsEnemies.forEach((enemy, index) => {
+        // Move enemy downward with increased speed (0.4 instead of 0.3)
+        enemy.y += 0.4;
+        enemy.element.style.top = `${enemy.y}%`;
+        
+        // Check if enemy reached the bottom of the screen
+        if (enemy.y >= 100) {
+          endFPSGame(true);
+          return;
+        }
+      });
+      
+      // Update projectiles
+      fpsProjectiles.forEach((projectile, pIndex) => {
+        projectile.z += 5;
+        projectile.element.style.transform = `translateZ(${projectile.z}px)`;
+        
+        // Check collisions
+        fpsEnemies.forEach((enemy, eIndex) => {
+          if (Math.abs(projectile.x - enemy.x) < 10 && Math.abs(projectile.y - enemy.y) < 10) {
+            // Hit!
+            enemy.element.remove();
+            projectile.element.remove();
+            fpsEnemies.splice(eIndex, 1);
+            fpsProjectiles.splice(pIndex, 1);
+            fpsScore += 10;
+            document.getElementById('fpsScore').querySelector('span').textContent = fpsScore;
+          }
+        });
+        
+        // Remove projectile if too far
+        if (projectile.z > 100) {
+          projectile.element.remove();
+          fpsProjectiles.splice(pIndex, 1);
+        }
+      });
+    }
+
+    function shoot(x, y) {
+      if (!fpsGameActive) return;
+      
+      const projectile = document.createElement('div');
+      projectile.className = `fps-projectile ${selectedCharacter === 'ironman' ? 'iron-man-blast' : 'spider-web'}`;
+      
+      // Play sound
+      if (selectedCharacter === 'ironman') {
+        blastSound.currentTime = 0;
+        blastSound.play();
+      } else {
+        webSound.currentTime = 0;
+        webSound.play();
+      }
+      
+      const viewport = document.getElementById('fpsViewport');
+      projectile.style.left = `${cursorX}%`;
+      projectile.style.top = `${cursorY}%`;
+      
+      viewport.appendChild(projectile);
+      
+      fpsProjectiles.push({
+        element: projectile,
+        x: cursorX,
+        y: cursorY,
+        z: 0
+      });
+    }
+
+    function endFPSGame(failed) {
+      fpsGameActive = false;
+      clearInterval(fpsGameLoop);
+      
+      // Restore cursor
+      document.body.style.cursor = 'default';
+      
+      // Hide FPS overlay
+      document.getElementById('fpsOverlay').style.display = 'none';
+      
+      if (failed) {
+        // If failed (enemy hit bottom), show game over immediately
+        showGameOverOverlay();
+        gameOver = true;
+      } else {
+        // Add FPS score to platformer score
+        score += fpsScore;
+        scoreDisplay.textContent = "Score: " + score;
+        
+        // Show success message
+        const successText = document.createElement('div');
+        successText.className = 'effect-text';
+        successText.textContent = 'REALITY RESTORED!';
+        successText.style.color = '#00ff00';
+        gameContainer.appendChild(successText);
+        
+        // Resume platformer game
+        gameOver = false;
+        isGamePaused = false;
+        
+        // Resume game music
+        if (currentGameMusic) {
+          currentGameMusic.play();
+        }
+        
+        // Remove success text after 1 second
+        setTimeout(() => {
+          successText.remove();
+        }, 1000);
+      }
+      
+      // Clean up
+      document.getElementById('fpsEnemies').innerHTML = '';
+      fpsEnemies = [];
+      fpsProjectiles = [];
+    }
+
+    // Modify the Reality Stone collection code
+    function activateRealityStone() {
+      startFPSGame();
+    }
+
+    // Add event listeners for FPS game
+    document.getElementById('fpsOverlay').addEventListener('click', () => {
+      if (fpsGameActive) {
+        shoot();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (fpsGameActive && (e.key === 'w' || e.key === 'W')) {
+        shoot();
+      }
+    });
+
+    function startFPSGame() {
+      console.log("Starting FPS game...");
+      isGamePaused = true;
+      
+      // Play character's music
+      if (currentGameMusic) {
+        currentGameMusic.currentTime = 0;
+        currentGameMusic.play();
+      }
+      
+      // Reset cursor position to center
+      cursorX = 50;
+      cursorY = 50;
+      
+      const overlay = document.getElementById('fpsOverlay');
+      const countdownOverlay = document.getElementById('countdownOverlay');
+      const countdownElement = document.getElementById('countdown');
+      overlay.style.display = 'block';
+      
+      // Hide cursor and show crosshair
+      document.body.style.cursor = 'none';
+      
+      // 4-second countdown
+      let countdown = 4;
+      countdownElement.textContent = 'GET READY';
+      
+      const countdownInterval = setInterval(() => {
+        countdown--;
+        if (countdown > 0) {
+          countdownElement.textContent = countdown;
+        } else {
+          clearInterval(countdownInterval);
+          countdownOverlay.style.display = 'none';
+          
+          // Start actual game after countdown
+          fpsGameActive = true;
+          fpsScore = 0;
+          fpsEnemies = [];
+          fpsProjectiles = [];
+          fpsStartTime = Date.now();
+          
+          document.getElementById('fpsScore').querySelector('span').textContent = '0';
+          
+          // Start spawning enemies
+          spawnFPSEnemies();
+          
+          // Start game loop
+          fpsGameLoop = setInterval(updateFPSGame, 16);
+          
+          // Start 15-second timer
+          const timerInterval = setInterval(() => {
+            if (!fpsGameActive) {
+              clearInterval(timerInterval);
+              return;
+            }
+            const timeLeft = Math.ceil((15000 - (Date.now() - fpsStartTime)) / 1000);
+            document.getElementById('fpsTimer').textContent = `Time: ${timeLeft}s`;
+            
+            if (timeLeft <= 0) {
+              clearInterval(timerInterval);
+              endFPSGame(false);
+            }
+          }, 1000);
+        }
+      }, 1000);
+    }
+
+    // Add cursor movement event handlers
+    document.addEventListener('keydown', (e) => {
+      if (!fpsGameActive) return;
+      
+      switch(e.key) {
+        case 'ArrowLeft':
+          cursorX -= cursorSpeed;
+          break;
+        case 'ArrowRight':
+          cursorX += cursorSpeed;
+          break;
+        case 'ArrowUp':
+          cursorY -= cursorSpeed;
+          break;
+        case 'ArrowDown':
+          cursorY += cursorSpeed;
+          break;
+      }
+      
+      // Keep cursor within viewport bounds
+      cursorX = Math.max(0, Math.min(100, cursorX));
+      cursorY = Math.max(0, Math.min(100, cursorY));
+    });
+
+    function spawnFPSEnemies() {
+      if (!fpsGameActive) return;
+      
+      const enemy = document.createElement('div');
+      enemy.className = 'fps-enemy';
+      
+      // Set larger size for Thanos when playing as Iron Man
+      if (selectedCharacter === 'ironman') {
+        enemy.style.width = '200px';  // Increased from 150px
+        enemy.style.height = '200px'; // Increased from 150px
+      }
+      
+      enemy.style.backgroundImage = `url('${selectedCharacter === 'ironman' ? 'thanos.png' : 'venom.png'}')`;
+      
+      // Random position at the top
+      const x = Math.random() * 80 + 10; // 10% to 90% of screen width
+      const y = 0; // Start at top of screen
+      
+      enemy.style.left = `${x}%`;
+      enemy.style.top = `${y}%`;
+      
+      document.getElementById('fpsEnemies').appendChild(enemy);
+      fpsEnemies.push({
+        element: enemy,
+        x: x,
+        y: y
+      });
+      
+      // Spawn next enemy with shorter delay for more challenge
+      setTimeout(spawnFPSEnemies, 2500);
+    }
+
+    function handleScrolling() {
+      let scrollAmount = 0;
+      if (player.y < canvas.height / 4) {
+        scrollAmount = canvas.height / 4 - player.y;
+        player.y += scrollAmount;
+        
+        platforms.forEach(platform => {
+          platform.y += scrollAmount;
+          if (platform.isMoving) {
+            platform.originalY += scrollAmount;
+          }
+          if (platform.enemy) {
+            platform.enemy.y += scrollAmount;
+            if (platform.enemy.element) {
+              platform.enemy.element.style.top = platform.enemy.y + 'px';
+            }
+          }
+          // Update Time Stone position during scrolling
+          if (platform.timeStone) {
+            platform.timeStone.style.top = (platform.y - 30) + 'px';
+          }
+          if (platform.y > canvas.height) {
+            // Clean up any existing elements before recycling
+            if (platform.enemy && platform.enemy.element) {
+              platform.enemy.element.remove();
+              platform.enemy = null;
+            }
+            recyclePlatform(platform);
+          }
+        });
+        
+        // Call cleanup after scrolling
+        cleanupEnemies();
+      }
+      return scrollAmount;
+    }
+
+    function resetGame() {
+        score = 0;
+        updateScore();
+        platforms.forEach(platform => {
+            if (platform.enemy && platform.enemy.element) {
+                platform.enemy.element.remove();
+            }
+            if (platform.spaceStone) {
+                platform.spaceStone.remove();
+            }
+            if (platform.timeStone) {
+                platform.timeStone.remove();
+            }
+            if (platform.realityStone) {
+                platform.realityStone.remove();
+            }
+        });
+        cleanupEnemies(); // Add cleanup on game reset
+        // ... existing code ...
+    }
+
+    function handleEnemyCollision(enemy) {
+        if (isInvincible) {
+            // Remove the enemy when defeated
+            if (enemy.element) {
+                enemy.element.remove();
+            }
+            // Find and clear the enemy reference from its platform
+            const platform = platforms.find(p => p.enemy === enemy);
+            if (platform) {
+                platform.enemy = null;
+            }
+            cleanupEnemies(); // Add cleanup after defeating enemy
+            // ... existing code ...
+        }
+    }
+
+    function updatePlatforms() {
+        platforms.forEach(platform => {
+            if (platform.isFalling) {
+                platform.fallSpeed += gravity;
+                platform.y += platform.fallSpeed;
+                
+                // Update enemy position if platform has one
+                if (platform.enemy) {
+                    platform.enemy.y = platform.y - platform.enemy.height;
+                }
+                
+                // If platform falls off screen
+                if (platform.y > canvas.height) {
+                    if (platform.enemy && platform.enemy.element) {
+                        platform.enemy.element.remove();
+                    }
+                    platform.enemy = null;
+                    cleanupEnemies(); // Add cleanup for falling platforms
+                    recyclePlatform(platform);
+                }
+            }
+        });
+    }
+
+    // Add this function after the other utility functions
+    function drawRisingFloor() {
+      if (!floorRising) return;
+      
+      // Draw a glowing red/orange gradient for the floor
+      const floorGradient = ctx.createLinearGradient(0, floorLevel, 0, floorLevel + 20);
+      floorGradient.addColorStop(0, 'rgba(255, 0, 0, 0.8)');
+      floorGradient.addColorStop(0.5, 'rgba(255, 120, 0, 0.9)');
+      floorGradient.addColorStop(1, 'rgba(255, 50, 0, 0.7)');
+      
+      ctx.fillStyle = floorGradient;
+      ctx.fillRect(0, floorLevel, canvas.width, canvas.height - floorLevel);
+      
+      // Add a warning glow at the top edge of the floor
+      ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+      ctx.fillRect(0, floorLevel - 5, canvas.width, 5);
+    }
+    </script>
+</body>
+</html>
